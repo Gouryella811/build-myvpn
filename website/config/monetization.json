@@ -8,45 +8,32 @@
   "web_bottom_ad": {
     "enabled": true,
     "badge": "AD",
-    "title": "广告位招租 · 预留 Google AdSense / 商业赞助横幅",
-    "subtitle": "极简固定底栏，不弹窗不干扰使用 · 点击联系赞助合作",
+    "title": "Build MyVpn 官方广告位合作开放中",
+    "subtitle": "触达全球自建代理与开发者用户 · 联系商务合作",
     "url": "#sponsor"
   },
   "connect_banner": {
     "enabled": true,
     "badge": "AD",
-    "title": "广告位招租 · 预留商业赞助与广告横幅",
-    "subtitle": "极简不干扰使用 · 点击查看合作方式",
+    "title": "Build MyVpn 官方赞助位合作",
+    "subtitle": "极简展示位 · 点击了解合作方式",
     "url": "https://build-myvpn.pages.dev/#sponsor"
   },
   "add_vps_banner": {
     "enabled": true,
     "badge": "AD",
-    "title": "广告位招租 · 预留商业赞助与广告横幅",
-    "subtitle": "支持 Google 广告与直投赞助 · 点击查看详情",
+    "title": "Build MyVpn 官方赞助位合作",
+    "subtitle": "点击查看详情与联系方式",
     "url": "https://build-myvpn.pages.dev/#sponsor"
   },
   "recommended_vps": [],
   "donations": {
-    "note": "Build MyVpn 永久免费开源，所有捐赠完全自愿，不解锁任何付费功能。",
+    "note": "Build MyVpn is free and open source. Voluntary support helps sustain ongoing development.",
     "paypal_url": "",
     "kofi_url": "",
     "afdian_url": "",
     "alipay_tip": "",
     "wechat_tip": "",
-    "crypto": [
-      {
-        "network": "USDT (TRC20)",
-        "address": "待填写你的_USDT_TRC20_收款地址"
-      },
-      {
-        "network": "TON",
-        "address": ""
-      },
-      {
-        "network": "BTC",
-        "address": ""
-      }
-    ]
+    "crypto": []
   }
 }
