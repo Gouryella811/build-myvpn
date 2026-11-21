@@ -47,7 +47,7 @@ class RuleSetManager(
     companion object {
         // Point to your GitHub repo's rolling "rules-latest" release once published
         const val DEFAULT_MIRROR_BASE_URL =
-            "https://github.com/build-myvpn/build-myvpn/releases/download/rules-latest"
+            "https://github.com/Gouryella811/build-myvpn/releases/download/rules-latest"
         private const val MIN_RULE_BYTES = 1024L
     }
 
