@@ -28,7 +28,7 @@ data class Hysteria2Credentials(
 
 /**
  * Persisted server profile.
- * Security policy (V1.1): SSH password is intentionally NOT stored ("use-and-discard").
+ * Security policy: SSH password is intentionally NOT stored on disk ("use-and-discard").
  */
 @Serializable
 data class ServerProfile(

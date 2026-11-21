@@ -3,9 +3,13 @@ name: Build MyVpn CI (Scripts + libbox + Android Debug APK)
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
     branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 env:
   SINGBOX_VERSION: "1.12.12"
@@ -79,3 +83,23 @@ jobs:
           name: build-myvpn-debug-apk
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      - name: Publish APK to GitHub Releases on version tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          APK_SRC="$(ls android/app/build/outputs/apk/debug/*.apk | head -n1)"
+          APK_OUT="Build-MyVpn-${TAG}-android.apk"
+          cp "$APK_SRC" "$APK_OUT"
+          sha256sum "$APK_OUT" > SHA256SUMS.txt
+        shell: bash
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Build-MyVpn-*-android.apk
+            SHA256SUMS.txt
+          generate_release_notes: true
+          make_latest: true
