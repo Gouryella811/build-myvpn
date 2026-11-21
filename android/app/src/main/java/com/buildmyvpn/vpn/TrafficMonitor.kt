@@ -52,7 +52,7 @@ class TrafficMonitor {
                     if (!resp.isSuccessful) return@use
                     val bodyStream = resp.body?.byteStream() ?: return@use
                     BufferedReader(InputStreamReader(bodyStream, Charsets.UTF_8)).use { reader ->
-                        var line: String?
+                        var line: String? = null
                         while (currentCoroutineContext().isActive && reader.readLine().also { line = it } != null) {
                             val trimmed = line?.trim().orEmpty()
                             if (!trimmed.startsWith("{")) continue
