@@ -30,7 +30,18 @@ data class AppPersistedState(
  * Atomic, Keystore-encrypted local repository for servers and minimal user preferences.
  * Guarantees no SSH passwords are ever persisted.
  */
-class ServerRepository(private val context: Context) {
+class ServerRepository private constructor(private val context: Context) {
+
+    companion object {
+        @Volatile
+        private var INSTANCE: ServerRepository? = null
+
+        fun getInstance(context: Context): ServerRepository {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: ServerRepository(context.applicationContext).also { INSTANCE = it }
+            }
+        }
+    }
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     private val mutex = Mutex()
@@ -101,6 +112,42 @@ class ServerRepository(private val context: Context) {
 
     suspend fun setRulesUpdatedAt(timestamp: String) {
         update { it.copy(rulesUpdatedAt = timestamp) }
+    }
+
+    suspend fun updateServerRegion(serverId: String, countryCode: String, regionLabel: String) {
+        update { current ->
+            current.copy(
+                servers = current.servers.map {
+                    if (it.id == serverId) it.copy(countryCode = countryCode, regionLabel = regionLabel) else it
+                }
+            )
+        }
+    }
+
+    suspend fun addTrafficBytes(serverId: String, rxDelta: Long, txDelta: Long) {
+        if (rxDelta <= 0L && txDelta <= 0L) return
+        update { current ->
+            current.copy(
+                servers = current.servers.map {
+                    if (it.id == serverId) {
+                        it.copy(
+                            usedRxBytes = (it.usedRxBytes + rxDelta.coerceAtLeast(0L)),
+                            usedTxBytes = (it.usedTxBytes + txDelta.coerceAtLeast(0L))
+                        )
+                    } else it
+                }
+            )
+        }
+    }
+
+    suspend fun resetTraffic(serverId: String) {
+        update { current ->
+            current.copy(
+                servers = current.servers.map {
+                    if (it.id == serverId) it.copy(usedRxBytes = 0L, usedTxBytes = 0L) else it
+                }
+            )
+        }
     }
 
     private suspend fun update(transform: (AppPersistedState) -> AppPersistedState) =

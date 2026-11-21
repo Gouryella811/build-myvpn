@@ -3,15 +3,15 @@ package com.buildmyvpn
 import android.app.Activity
 import android.net.VpnService
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import com.buildmyvpn.ui.MainViewModel
+import androidx.appcompat.app.AppCompatActivity
 import com.buildmyvpn.ui.BuildMyVpnApp
+import com.buildmyvpn.ui.MainViewModel
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
 
     private val viewModel: MainViewModel by viewModels()
 

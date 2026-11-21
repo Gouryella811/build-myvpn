@@ -56,7 +56,7 @@ class QuickTileService : TileService() {
         }
 
         tileScope?.launch(Dispatchers.IO) {
-            val repo = ServerRepository(applicationContext).apply { load() }
+            val repo = ServerRepository.getInstance(applicationContext).apply { load() }
             val st = repo.state.value
             val server = st.servers.firstOrNull { it.id == st.selectedServerId } ?: st.servers.firstOrNull()
             if (server == null) {
@@ -76,6 +76,7 @@ class QuickTileService : TileService() {
             val startIntent = Intent(applicationContext, BuildMyVpnService::class.java).apply {
                 action = BuildMyVpnService.ACTION_START
                 putExtra(BuildMyVpnService.EXTRA_CONFIG_JSON, configJson)
+                putExtra(BuildMyVpnService.EXTRA_SERVER_ID, server.id)
                 putExtra(BuildMyVpnService.EXTRA_SERVER_LABEL, "${server.name} · ${server.host}")
                 putExtra(BuildMyVpnService.EXTRA_CLASH_SECRET, clashSecret)
             }

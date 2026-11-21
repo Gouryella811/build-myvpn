@@ -21,16 +21,20 @@ import com.buildmyvpn.deploy.SshDeployEngine
 import com.buildmyvpn.rules.RegionDetector
 import com.buildmyvpn.rules.RuleSetManager
 import com.buildmyvpn.rules.RuleUpdateResult
-import com.buildmyvpn.vpn.DelayResult
 import com.buildmyvpn.vpn.BuildMyVpnService
+import com.buildmyvpn.vpn.DelayResult
+import com.buildmyvpn.vpn.OnlineStatus
 import com.buildmyvpn.vpn.SingBoxConfigBuilder
+import com.buildmyvpn.vpn.TrafficSpeed
 import com.buildmyvpn.vpn.VpnState
+import com.buildmyvpn.vpn.VpsStatusChecker
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -52,8 +56,10 @@ data class MainUiState(
     val monetization: MonetizationConfig = MonetizationConfig(),
     val vpnState: VpnState = VpnState.DISCONNECTED,
     val delayResult: DelayResult = DelayResult.Idle,
+    val trafficSpeed: TrafficSpeed = TrafficSpeed(),
     val vpnError: String? = null,
     val recentLogs: List<String> = emptyList(),
+    val serverOnlineMap: Map<String, OnlineStatus> = emptyMap(),
     val deployState: DeployUiState = DeployUiState(),
     val pendingHostKey: PendingHostKeyPrompt? = null,
     val ruleUpdateMessage: String? = null,
@@ -66,7 +72,7 @@ data class MainUiState(
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository = ServerRepository(application)
+    private val repository = ServerRepository.getInstance(application)
     private val monetizationManager = MonetizationManager(application)
     private val deployEngine = SshDeployEngine(application)
     private val ruleSetManager = RuleSetManager(application)
@@ -75,21 +81,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _pendingHostKey = MutableStateFlow<PendingHostKeyPrompt?>(null)
     private val _ruleUpdateMessage = MutableStateFlow<String?>(null)
     private val _ruleUpdating = MutableStateFlow(false)
+    private val _serverOnlineMap = MutableStateFlow<Map<String, OnlineStatus>>(emptyMap())
 
     private val vpnFlow = combine(
         BuildMyVpnService.state,
         BuildMyVpnService.delayResult,
+        BuildMyVpnService.trafficSpeed,
         BuildMyVpnService.lastError,
         BuildMyVpnService.recentLogs
-    ) { vpnState, delayResult, vpnError, logs -> VpnTuple(vpnState, delayResult, vpnError, logs) }
+    ) { vpnState, delayResult, speed, vpnError, logs ->
+        VpnTuple(vpnState, delayResult, speed, vpnError, logs)
+    }
 
     private val opsFlow = combine(
         _deployState,
         _pendingHostKey,
         _ruleUpdateMessage,
-        _ruleUpdating
-    ) { deploy, hostKey, ruleMsg, ruleBusy ->
-        OpsTuple(deploy, hostKey, ruleMsg, ruleBusy)
+        _ruleUpdating,
+        _serverOnlineMap
+    ) { deploy, hostKey, ruleMsg, ruleBusy, onlineMap ->
+        OpsTuple(deploy, hostKey, ruleMsg, ruleBusy, onlineMap)
     }
 
     val uiState: StateFlow<MainUiState> = combine(
@@ -103,8 +114,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             monetization = monetization,
             vpnState = vpn.vpnState,
             delayResult = vpn.delayResult,
+            trafficSpeed = vpn.trafficSpeed,
             vpnError = vpn.vpnError,
             recentLogs = vpn.logs,
+            serverOnlineMap = ops.onlineMap,
             deployState = ops.deploy,
             pendingHostKey = ops.hostKey,
             ruleUpdateMessage = ops.ruleMsg,
@@ -115,6 +128,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private data class VpnTuple(
         val vpnState: VpnState,
         val delayResult: DelayResult,
+        val trafficSpeed: TrafficSpeed,
         val vpnError: String?,
         val logs: List<String>
     )
@@ -123,13 +137,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val deploy: DeployUiState,
         val hostKey: PendingHostKeyPrompt?,
         val ruleMsg: String?,
-        val ruleBusy: Boolean
+        val ruleBusy: Boolean,
+        val onlineMap: Map<String, OnlineStatus>
     )
 
     init {
         viewModelScope.launch {
             repository.load()
             ruleSetManager.seedBundledRulesIfNeeded()
+            refreshServersStatusAndRegions()
         }
         viewModelScope.launch {
             monetizationManager.loadAndRefresh()
@@ -155,6 +171,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val intent = Intent(ctx, BuildMyVpnService::class.java).apply {
             action = BuildMyVpnService.ACTION_START
             putExtra(BuildMyVpnService.EXTRA_CONFIG_JSON, configJson)
+            putExtra(BuildMyVpnService.EXTRA_SERVER_ID, server.id)
             putExtra(BuildMyVpnService.EXTRA_SERVER_LABEL, "${server.name} · ${server.host}")
             putExtra(BuildMyVpnService.EXTRA_CLASH_SECRET, clashSecret)
         }
@@ -173,6 +190,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ctx.startService(Intent(ctx, BuildMyVpnService::class.java).apply {
             action = BuildMyVpnService.ACTION_REFRESH_DELAY
         })
+    }
+
+    fun refreshServersStatusAndRegions() {
+        val servers = repository.state.value.servers
+        for (srv in servers) {
+            viewModelScope.launch {
+                _serverOnlineMap.update { it + (srv.id to OnlineStatus.CHECKING) }
+                val online = VpsStatusChecker.probeTcpOnline(srv.host, srv.port)
+                _serverOnlineMap.update { it + (srv.id to online) }
+            }
+            if (srv.countryCode.isNullOrBlank()) {
+                viewModelScope.launch {
+                    val info = VpsStatusChecker.lookupRegion(srv.host)
+                    if (info != null) {
+                        repository.updateServerRegion(srv.id, info.countryCode, info.label)
+                    }
+                }
+            }
+        }
     }
 
     fun selectServer(serverId: String) {
@@ -218,6 +254,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.renameServer(serverId, newName) }
     }
 
+    fun resetServerTraffic(serverId: String) {
+        viewModelScope.launch { repository.resetTraffic(serverId) }
+    }
+
     fun deleteServer(serverId: String) {
         viewModelScope.launch {
             if (uiState.value.selectedServer?.id == serverId &&
@@ -243,7 +283,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             !privateKeyPem.isNullOrBlank() -> SshAuth.PrivateKey(privateKeyPem)
             password != null && password.isNotEmpty() -> SshAuth.Password(password)
             else -> {
-                _deployState.value = DeployUiState(errorMessage = "请输入 SSH 密码或私钥")
+                _deployState.value = DeployUiState(errorMessage = "SSH credentials required")
                 return
             }
         }
@@ -262,7 +302,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
 
         viewModelScope.launch {
-            _deployState.value = DeployUiState(inProgress = true, currentStep = "ssh", statusMessage = "正在连接服务器…")
+            _deployState.value = DeployUiState(inProgress = true, currentStep = "ssh", statusMessage = "Connecting via SSH…")
             runCatching {
                 val profile = deployEngine.deploy(
                     request = request,
@@ -285,14 +325,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 repository.upsertServer(profile, selectImmediately = true)
                 _deployState.value = DeployUiState()
+                refreshServersStatusAndRegions()
                 onSuccess()
             }.onFailure { ex ->
                 val msg = when (ex) {
                     is HostKeyMismatchException ->
-                        "安全警告：服务器 SSH 主机指纹发生变化（可能存在中间人攻击），已中止连接。"
+                        "Security warning: SSH host key fingerprint changed (possible MITM)."
                     is HostKeyRejectedException ->
-                        "已取消信任服务器指纹，部署中止。"
-                    else -> ex.message ?: "部署失败，请检查服务器信息后重试。"
+                        "SSH host key rejected; deployment canceled."
+                    else -> ex.message ?: "Deployment failed."
                 }
                 _deployState.value = DeployUiState(inProgress = false, errorMessage = msg)
             }
@@ -315,10 +356,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             when (val res = ruleSetManager.updateAllRules()) {
                 is RuleUpdateResult.Updated -> {
                     repository.setRulesUpdatedAt(res.updatedAt)
-                    _ruleUpdateMessage.value = "规则已更新（${res.updatedAt}）"
+                    _ruleUpdateMessage.value = res.updatedAt
                 }
                 is RuleUpdateResult.Failed -> {
-                    _ruleUpdateMessage.value = "更新失败：${res.reason}（继续使用本地缓存）"
+                    _ruleUpdateMessage.value = res.reason
                 }
             }
             _ruleUpdating.value = false

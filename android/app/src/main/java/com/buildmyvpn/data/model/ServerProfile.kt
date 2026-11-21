@@ -43,8 +43,24 @@ data class ServerProfile(
     val activeTransport: ActiveTransport = ActiveTransport.REALITY,
     val reality: RealityCredentials? = null,
     val hysteria2: Hysteria2Credentials? = null,
-    val bbrStatus: String? = null
+    val bbrStatus: String? = null,
+    val countryCode: String? = null,
+    val regionLabel: String? = null,
+    val usedRxBytes: Long = 0L,
+    val usedTxBytes: Long = 0L
 ) {
+    val totalUsedBytes: Long
+        get() = (usedRxBytes + usedTxBytes).coerceAtLeast(0L)
+
+    val flagEmoji: String
+        get() {
+            val cc = countryCode?.trim()?.uppercase() ?: return ""
+            if (cc.length != 2 || !cc[0].isLetter() || !cc[1].isLetter()) return ""
+            val first = Character.toChars(0x1F1E6 + (cc[0] - 'A'))
+            val second = Character.toChars(0x1F1E6 + (cc[1] - 'A'))
+            return String(first) + String(second)
+        }
+
     /**
      * Generates a standard shareable URI for desktop/iOS clients (hidden in Server Edit screen).
      */
