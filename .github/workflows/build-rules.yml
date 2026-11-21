@@ -38,8 +38,8 @@ jobs:
           curl -fsSL "https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geosite-ir.srs" -o dist/rules/geosite-ir.srs
           curl -fsSL "https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geoip-ir.srs" -o dist/rules/geoip-ir.srs
 
-          # Russia (RU) — combine MetaCubeX RU geoip/geosite & validate against runetfreedom
-          curl -fsSL "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/ru.srs" -o dist/rules/geosite-ru.srs
+          # Russia (RU)
+          curl -fsSL "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/category-ru.srs" -o dist/rules/geosite-ru.srs
           curl -fsSL "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/ru.srs" -o dist/rules/geoip-ru.srs
 
       - name: Validate rule-set sizes and binary integrity
