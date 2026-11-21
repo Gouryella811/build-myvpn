@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Build MyVpn — 开源极简自建 VPS VPN 客户端</title>
+  <meta name="description" content="Build MyVpn 是一款免费开源的 Android 自建 VPN 客户端。不懂 Linux 也能输入 VPS 地址与密码自动部署 VLESS+REALITY 并开启 BBR 加速，一键安全连接。" />
+  <style>
+    :root {
+      --bg: #0b1020;
+      --surface: #121933;
+      --surface-2: #192347;
+      --text: #eef2ff;
+      --muted: #9aa7c7;
+      --accent: #4f8cff;
+      --accent-2: #22c55e;
+      --warn: #f59e0b;
+      --border: rgba(255, 255, 255, 0.09);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Noto Sans SC", sans-serif;
+      background: radial-gradient(circle at top, #17224a 0%, var(--bg) 52%);
+      color: var(--text);
+      line-height: 1.65;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .container { max-width: 980px; margin: 0 auto; padding: 0 20px; }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 0; border-bottom: 1px solid var(--border);
+    }
+    .brand { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.3px; }
+    .brand span { color: var(--accent); }
+    nav { display: flex; gap: 18px; align-items: center; font-size: 0.95rem; }
+    .lang-btn {
+      background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+      padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.85rem;
+    }
+    .hero { text-align: center; padding: 64px 0 42px; }
+    .pill {
+      display: inline-block; padding: 5px 14px; border-radius: 999px;
+      background: rgba(79, 140, 255, 0.14); color: #9ec0ff; font-size: 0.85rem; margin-bottom: 16px;
+    }
+    h1 { font-size: clamp(2rem, 4.5vw, 3rem); line-height: 1.2; margin-bottom: 16px; }
+    .subtitle { max-width: 680px; margin: 0 auto 28px; color: var(--muted); font-size: 1.08rem; }
+    .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px; padding: 13px 24px;
+      border-radius: 10px; font-weight: 600; font-size: 1rem; transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.9; text-decoration: none; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+    section { padding: 44px 0; }
+    h2 { font-size: 1.6rem; margin-bottom: 18px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px;
+    }
+    .card h3 { font-size: 1.1rem; margin-bottom: 8px; }
+    .card p { color: var(--muted); font-size: 0.94rem; }
+    .price-tag {
+      display: inline-block; margin: 8px 0; padding: 3px 10px; border-radius: 6px;
+      background: rgba(34, 197, 94, 0.15); color: #7ef0a8; font-size: 0.85rem; font-weight: 600;
+    }
+    .ad-slot {
+      margin: 24px auto; padding: 18px; text-align: center;
+      border: 1px dashed var(--border); border-radius: var(--radius);
+      color: var(--muted); font-size: 0.88rem; background: rgba(255,255,255,0.02);
+    }
+    .crypto-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      background: var(--surface-2); padding: 12px 14px; border-radius: 10px; margin-top: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; word-break: break-all;
+    }
+    .copy-btn {
+      flex-shrink: 0; background: var(--accent); color: #fff; border: none;
+      padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.82rem;
+    }
+    footer {
+      border-top: 1px solid var(--border); padding: 28px 0 44px;
+      color: var(--muted); font-size: 0.88rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">Build <span>MyVpn</span></div>
+      <nav>
+        <a href="#features" data-i18n="nav_features">核心特点</a>
+        <a href="#vps-guide" data-i18n="nav_vps">VPS 推荐</a>
+        <a href="#donate" data-i18n="nav_donate">支持开发</a>
+        <a href="https://github.com/Gouryella811/build-myvpn" target="_blank" rel="noopener">GitHub</a>
+        <button class="lang-btn" id="langToggle">EN / 中文</button>
+      </nav>
+    </header>
+
+    <div class="hero">
+      <div class="pill" data-i18n="hero_pill">Android · 免费开源 GPLv3+ · 零账号 · 自备 VPS</div>
+      <h1 data-i18n="hero_title">不懂 Linux，3 分钟拥有自己的专属 VPN</h1>
+      <p class="subtitle" data-i18n="hero_sub">
+        只需填入你购买的 VPS 地址与 SSH 密码，Build MyVpn 自动完成环境检测、BBR 加速与 VLESS + REALITY 部署，一键安全连接。
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://github.com/Gouryella811/build-myvpn/actions" target="_blank" rel="noopener" data-i18n="btn_download">
+          下载 Android APK
+        </a>
+        <a class="btn btn-secondary" href="https://github.com/Gouryella811/build-myvpn" target="_blank" rel="noopener" data-i18n="btn_source">
+          查看开源代码
+        </a>
+      </div>
+    </div>
+
+    <!-- AdSense / Sponsor 网页广告预留位（上线 AdSense 后将 <ins> 代码放入此处） -->
+    <div class="ad-slot" id="web-ad-top">
+      <span data-i18n="ad_placeholder">网页赞助 / Google AdSense 广告预留位（不影响 App 开源纯净度）</span>
+    </div>
+
+    <section id="features">
+      <h2 data-i18n="sec_features">为什么选择 Build MyVpn？</h2>
+      <div class="grid">
+        <div class="card">
+          <h3 data-i18n="f1_t">极简双页交互</h3>
+          <p data-i18n="f1_d">只有「连接」和「服务器」两个主页面。无需注册、无订阅套路、不运营任何公共节点，所有数据掌握在你自己手里。</p>
+        </div>
+        <div class="card">
+          <h3 data-i18n="f2_t">VLESS + REALITY & 自动 BBR</h3>
+          <p data-i18n="f2_d">默认部署免域名、强抗封锁的 VLESS + REALITY（TCP 443），并按系统自动开启 TCP BBR 加速，小白也能跑满带宽。</p>
+        </div>
+        <div class="card">
+          <h3 data-i18n="f3_t">SSH 密码用后即焚</h3>
+          <p data-i18n="f3_d">支持 SSH 公钥指纹校验（TOFU）防中间人攻击；SSH 密码仅用于部署当下，完成后立即从内存擦除，绝不落盘保存。</p>
+        </div>
+        <div class="card">
+          <h3 data-i18n="f4_t">智能分流与真实延迟</h3>
+          <p data-i18n="f4_d">支持通用、中国、伊朗、俄罗斯四套分流规则，每日自动校验更新；延迟测试走真实代理出口，拒绝虚假 Ping。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="vps-guide">
+      <h2 data-i18n="sec_vps">新手高性价比 VPS 选购推荐</h2>
+      <p style="color: var(--muted); margin-bottom: 18px;" data-i18n="vps_intro">
+        购买任意一台 Ubuntu 22.04 / 24.04 或 Debian 12 的海外 VPS，记下 IP 和 root 密码填入 Build MyVpn 即可自动完成部署（通过下方推荐链接购买可支持项目持续维护）：
+      </p>
+      <div class="grid" id="vps-list"></div>
+    </section>
+
+    <section id="donate">
+      <h2 data-i18n="sec_donate">支持开发者（自愿捐赠）</h2>
+      <div class="card">
+        <p id="donate-note" style="margin-bottom: 14px;">
+          Build MyVpn 永久免费开源，所有捐赠完全自愿，不解锁任何额外功能。
+        </p>
+        <div class="cta-row" id="donate-links" style="justify-content: flex-start; margin-bottom: 14px;"></div>
+        <div id="crypto-list"></div>
+      </div>
+    </section>
+
+    <footer>
+      <div>© 2026 Build MyVpn · GNU GPLv3+ Open Source</div>
+      <div>
+        <a href="./privacy.html" data-i18n="link_privacy">隐私政策</a> ·
+        <a href="https://github.com/Gouryella811/build-myvpn" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    const I18N = {
+      zh: {
+        nav_features: "核心特点", nav_vps: "VPS 推荐", nav_donate: "支持开发",
+        hero_pill: "Android · 免费开源 GPLv3+ · 零账号 · 自备 VPS",
+        hero_title: "不懂 Linux，3 分钟拥有自己的专属 VPN",
+        hero_sub: "只需填入你购买的 VPS 地址与 SSH 密码，Build MyVpn 自动完成环境检测、BBR 加速与 VLESS + REALITY 部署，一键安全连接。",
+        btn_download: "下载 Android APK", btn_source: "查看开源代码",
+        ad_placeholder: "网页赞助 / Google AdSense 广告预留位（不影响 App 开源纯净度）",
+        sec_features: "为什么选择 Build MyVpn？",
+        f1_t: "极简双页交互", f1_d: "只有「连接」和「服务器」两个主页面。无需注册、无订阅套路、不运营任何公共节点，所有数据掌握在你自己手里。",
+        f2_t: "VLESS + REALITY & 自动 BBR", f2_d: "默认部署免域名、强抗封锁的 VLESS + REALITY（TCP 443），并按系统自动开启 TCP BBR 加速，小白也能跑满带宽。",
+        f3_t: "SSH 密码用后即焚", f3_d: "支持 SSH 公钥指纹校验（TOFU）防中间人攻击；SSH 密码仅用于部署当下，完成后立即从内存擦除，绝不落盘保存。",
+        f4_t: "智能分流与真实延迟", f4_d: "支持通用、中国、伊朗、俄罗斯四套分流规则，每日自动校验更新；延迟测试走真实代理出口，拒绝虚假 Ping。",
+        sec_vps: "新手高性价比 VPS 选购推荐",
+        vps_intro: "购买任意一台 Ubuntu 22.04 / 24.04 或 Debian 12 的海外 VPS，记下 IP 和 root 密码填入 Build MyVpn 即可自动完成部署（通过下方推荐链接购买可支持项目持续维护）：",
+        sec_donate: "支持开发者（自愿捐赠）", link_privacy: "隐私政策"
+      },
+      en: {
+        nav_features: "Features", nav_vps: "VPS Guide", nav_donate: "Donate",
+        hero_pill: "Android · Free & Open Source GPLv3+ · Self-Hosted VPS",
+        hero_title: "Your Own Private VPN in 3 Minutes — No Linux Needed",
+        hero_sub: "Enter your VPS address and SSH credentials. Build MyVpn automatically enables BBR, deploys VLESS + REALITY, and connects in one tap.",
+        btn_download: "Download Android APK", btn_source: "View Source on GitHub",
+        ad_placeholder: "Web Sponsor / Google AdSense Slot (keeps the Android APK 100% clean GPLv3)",
+        sec_features: "Why Build MyVpn?",
+        f1_t: "Minimal Two-Tab Design", f1_d: "Only Connect and Servers. No accounts, no subscriptions, no shared proxy nodes—you fully own your server.",
+        f2_t: "VLESS + REALITY & Auto BBR", f2_d: "Domain-free anti-censorship VLESS + REALITY on TCP 443 with OS-adaptive TCP BBR acceleration out of the box.",
+        f3_t: "Use-and-Discard SSH Credentials", f3_d: "TOFU SSH host key fingerprint checks prevent MITM attacks. SSH passwords are wiped from memory right after deployment.",
+        f4_t: "Smart Routing & Real Latency", f4_d: "Daily validated General / CN / IR / RU routing rules with fail-closed leak protection and real proxy egress latency checks.",
+        sec_vps: "Recommended Beginner-Friendly VPS Providers",
+        vps_intro: "Rent any Ubuntu 22.04/24.04 or Debian 12 VPS, then enter its IP and password in Build MyVpn (referral links help fund ongoing development):",
+        sec_donate: "Support the Developer (Voluntary)", link_privacy: "Privacy Policy"
+      }
+    };
+
+    let lang = (navigator.language || "").toLowerCase().startsWith("zh") ? "zh" : "en";
+    function applyLang() {
+      document.querySelectorAll("[data-i18n]").forEach(el => {
+        const key = el.getAttribute("data-i18n");
+        if (I18N[lang][key]) el.textContent = I18N[lang][key];
+      });
+    }
+    document.getElementById("langToggle").addEventListener("click", () => {
+      lang = lang === "zh" ? "en" : "zh";
+      applyLang();
+    });
+    applyLang();
+
+    fetch("./config/monetization.json")
+      .then(r => r.json())
+      .then(cfg => {
+        const vpsEl = document.getElementById("vps-list");
+        (cfg.recommended_vps || []).forEach(v => {
+          const card = document.createElement("div");
+          card.className = "card";
+          card.innerHTML = `
+            <h3>${v.name}</h3>
+            <div class="price-tag">${v.price}</div>
+            <p style="margin-bottom: 14px;">${v.highlights}</p>
+            <a class="btn btn-secondary" style="padding: 8px 14px; font-size: 0.9rem;" href="${v.url}" target="_blank" rel="noopener">查看详情 →</a>
+          `;
+          vpsEl.appendChild(card);
+        });
+
+        const d = cfg.donations || {};
+        if (d.note) document.getElementById("donate-note").textContent = d.note;
+
+        const linksEl = document.getElementById("donate-links");
+        const linkDefs = [
+          ["PayPal.Me", d.paypal_url],
+          ["Ko-fi", d.kofi_url],
+          ["爱发电 (支付宝/微信)", d.afdian_url]
+        ];
+        linkDefs.forEach(([label, url]) => {
+          if (!url) return;
+          const a = document.createElement("a");
+          a.className = "btn btn-secondary";
+          a.style.padding = "9px 16px";
+          a.href = url;
+          a.target = "_blank";
+          a.rel = "noopener";
+          a.textContent = label;
+          linksEl.appendChild(a);
+        });
+
+        const cryptoEl = document.getElementById("crypto-list");
+        (d.crypto || []).forEach(c => {
+          if (!c.address) return;
+          const row = document.createElement("div");
+          row.className = "crypto-row";
+          row.innerHTML = `<div><strong>${c.network}:</strong> ${c.address}</div>`;
+          const btn = document.createElement("button");
+          btn.className = "copy-btn";
+          btn.textContent = "复制";
+          btn.onclick = () => {
+            navigator.clipboard.writeText(c.address);
+            btn.textContent = "已复制";
+            setTimeout(() => (btn.textContent = "复制"), 1500);
+          };
+          row.appendChild(btn);
+          cryptoEl.appendChild(row);
+        });
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>

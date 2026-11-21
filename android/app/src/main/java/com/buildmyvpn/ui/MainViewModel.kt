@@ -5,6 +5,8 @@ import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.buildmyvpn.data.AppPersistedState
+import com.buildmyvpn.data.MonetizationConfig
+import com.buildmyvpn.data.MonetizationManager
 import com.buildmyvpn.data.ServerRepository
 import com.buildmyvpn.data.model.ActiveTransport
 import com.buildmyvpn.data.model.DeployedProtocolMode
@@ -47,6 +49,7 @@ data class DeployUiState(
 
 data class MainUiState(
     val persisted: AppPersistedState = AppPersistedState(),
+    val monetization: MonetizationConfig = MonetizationConfig(),
     val vpnState: VpnState = VpnState.DISCONNECTED,
     val delayResult: DelayResult = DelayResult.Idle,
     val vpnError: String? = null,
@@ -64,6 +67,7 @@ data class MainUiState(
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = ServerRepository(application)
+    private val monetizationManager = MonetizationManager(application)
     private val deployEngine = SshDeployEngine(application)
     private val ruleSetManager = RuleSetManager(application)
 
@@ -90,11 +94,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val uiState: StateFlow<MainUiState> = combine(
         repository.state,
+        monetizationManager.config,
         vpnFlow,
         opsFlow
-    ) { persisted, vpn, ops ->
+    ) { persisted, monetization, vpn, ops ->
         MainUiState(
             persisted = persisted,
+            monetization = monetization,
             vpnState = vpn.vpnState,
             delayResult = vpn.delayResult,
             vpnError = vpn.vpnError,
@@ -124,6 +130,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.load()
             ruleSetManager.seedBundledRulesIfNeeded()
+        }
+        viewModelScope.launch {
+            monetizationManager.loadAndRefresh()
         }
     }
 

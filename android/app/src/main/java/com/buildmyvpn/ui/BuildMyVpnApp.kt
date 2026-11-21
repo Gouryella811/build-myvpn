@@ -3,6 +3,8 @@ package com.buildmyvpn.ui
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,11 +21,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Refresh
@@ -53,6 +57,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -67,9 +72,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.buildmyvpn.R
+import com.buildmyvpn.data.BannerSlot
+import com.buildmyvpn.data.DonationConfig
+import com.buildmyvpn.data.MonetizationConfig
+import com.buildmyvpn.data.RecommendedVpsItem
 import com.buildmyvpn.data.model.ActiveTransport
 import com.buildmyvpn.data.model.DeployedProtocolMode
 import com.buildmyvpn.data.model.ProxyMode
@@ -78,6 +89,21 @@ import com.buildmyvpn.data.model.ServerProfile
 import com.buildmyvpn.deploy.HostValidator
 import com.buildmyvpn.vpn.DelayResult
 import com.buildmyvpn.vpn.VpnState
+
+private fun openExternalUrl(context: Context, url: String) {
+    if (url.isBlank()) return
+    runCatching {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    }.onFailure {
+        Toast.makeText(context, "无法打开链接：$url", Toast.LENGTH_SHORT).show()
+    }
+}
+
+private fun copyToClipboard(context: Context, label: String, text: String, toastMsg: String) {
+    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    cm.setPrimaryClip(ClipData.newPlainText(label, text))
+    Toast.makeText(context, toastMsg, Toast.LENGTH_SHORT).show()
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,6 +115,8 @@ fun BuildMyVpnApp(
     val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) }
     var showSettings by remember { mutableStateOf(false) }
+    var showDonateDialog by remember { mutableStateOf(false) }
+    var showVpsRecommendDialog by remember { mutableStateOf(false) }
     var showRuleDialog by remember { mutableStateOf(false) }
     var showAddServerDialog by remember { mutableStateOf(false) }
     var editingServer by remember { mutableStateOf<ServerProfile?>(null) }
@@ -143,15 +171,25 @@ fun BuildMyVpnApp(
                     onRefreshDelay = { viewModel.refreshDelay() },
                     onSelectProxyMode = { viewModel.setProxyMode(it) },
                     onOpenRulePicker = { showRuleDialog = true },
-                    onOpenServers = { selectedTab = 1 }
+                    onOpenServers = { selectedTab = 1 },
+                    onClickConnectBanner = {
+                        val banner = state.monetization.connectBanner
+                        if (state.monetization.recommendedVps.isNotEmpty()) {
+                            showVpsRecommendDialog = true
+                        } else {
+                            openExternalUrl(context, banner.url)
+                        }
+                    }
                 )
             } else {
                 ServersScreen(
                     modifier = Modifier.padding(innerPadding),
                     servers = state.persisted.servers,
                     selectedId = state.selectedServer?.id,
+                    addVpsBanner = state.monetization.addVpsBanner,
                     onSelect = { viewModel.selectServer(it) },
                     onEdit = { editingServer = it },
+                    onClickVpsBanner = { showVpsRecommendDialog = true },
                     onAddClick = { showAddServerDialog = true }
                 )
             }
@@ -171,6 +209,8 @@ fun BuildMyVpnApp(
         if (showAddServerDialog) {
             AddVpsDialog(
                 deployState = state.deployState,
+                addVpsBanner = state.monetization.addVpsBanner,
+                onOpenVpsGuide = { showVpsRecommendDialog = true },
                 onDeploy = { nick, host, port, user, pass, key, enableHy2 ->
                     viewModel.deployNewServer(
                         nickname = nick,
@@ -236,14 +276,104 @@ fun BuildMyVpnApp(
             )
         }
 
+        if (showVpsRecommendDialog) {
+            RecommendedVpsDialog(
+                items = state.monetization.recommendedVps,
+                guideUrl = state.monetization.vpsGuideUrl,
+                onDismiss = { showVpsRecommendDialog = false }
+            )
+        }
+
         if (showSettings) {
             SettingsDialog(
+                monetization = state.monetization,
                 rulesUpdatedAt = state.persisted.rulesUpdatedAt,
                 ruleUpdating = state.ruleUpdating,
                 ruleUpdateMessage = state.ruleUpdateMessage,
                 recentLogs = state.recentLogs,
                 onUpdateRules = { viewModel.updateRulesNow() },
+                onOpenDonate = {
+                    showSettings = false
+                    showDonateDialog = true
+                },
+                onOpenVpsGuide = {
+                    showSettings = false
+                    showVpsRecommendDialog = true
+                },
                 onDismiss = { showSettings = false }
+            )
+        }
+
+        if (showDonateDialog) {
+            SupportDeveloperDialog(
+                donations = state.monetization.donations,
+                onDismiss = { showDonateDialog = false }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SponsorBannerCard(
+    banner: BannerSlot,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (!banner.enabled || banner.title.isBlank()) return
+    Card(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = MaterialTheme.shapes.extraSmall
+                    ) {
+                        Text(
+                            text = banner.badge.ifBlank { "推荐" },
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                    Text(
+                        text = banner.title,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                if (banner.subtitle.isNotBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = banner.subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -258,23 +388,24 @@ private fun ConnectScreen(
     onRefreshDelay: () -> Unit,
     onSelectProxyMode: (ProxyMode) -> Unit,
     onOpenRulePicker: () -> Unit,
-    onOpenServers: () -> Unit
+    onOpenServers: () -> Unit,
+    onClickConnectBanner: () -> Unit
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp, vertical = 20.dp),
+            .padding(horizontal = 24.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(4.dp))
 
         // Core Connect Area: Power Button -> Status -> Compact Single-Line Real Latency (Zero hint text)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             FilledTonalIconButton(
                 onClick = onToggleConnect,
                 shape = CircleShape,
-                modifier = Modifier.size(136.dp)
+                modifier = Modifier.size(132.dp)
             ) {
                 if (state.vpnState == VpnState.CONNECTING) {
                     CircularProgressIndicator(modifier = Modifier.size(44.dp))
@@ -282,11 +413,11 @@ private fun ConnectScreen(
                     Icon(
                         imageVector = Icons.Default.PowerSettingsNew,
                         contentDescription = stringResource(R.string.tab_connect),
-                        modifier = Modifier.size(56.dp)
+                        modifier = Modifier.size(54.dp)
                     )
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(14.dp))
             Text(
                 text = when (state.vpnState) {
                     VpnState.DISCONNECTED -> stringResource(R.string.status_disconnected)
@@ -331,22 +462,22 @@ private fun ConnectScreen(
             }
         }
 
-        // Server Selector + Proxy Mode + Routing Rule
+        // Server Selector + Proxy Mode + Routing Rule + Fixed Bottom Sponsor Banner
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             OutlinedCard(
                 onClick = onOpenServers,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(Modifier.padding(16.dp)) {
+                Column(Modifier.padding(14.dp)) {
                     Text(
                         text = stringResource(R.string.current_server),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(3.dp))
                     val server = state.selectedServer
                     Text(
                         text = if (server != null) {
@@ -388,11 +519,17 @@ private fun ConnectScreen(
                             RoutingRule.IR -> stringResource(R.string.rule_ir)
                             RoutingRule.RU -> stringResource(R.string.rule_ru)
                         },
-                        modifier = Modifier.padding(14.dp),
+                        modifier = Modifier.padding(13.dp),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
+
+            // Fixed Bottom Sponsor Banner (remote JSON driven, zero proprietary SDKs)
+            SponsorBannerCard(
+                banner = state.monetization.connectBanner,
+                onClick = onClickConnectBanner
+            )
         }
     }
 }
@@ -402,22 +539,29 @@ private fun ServersScreen(
     modifier: Modifier,
     servers: List<ServerProfile>,
     selectedId: String?,
+    addVpsBanner: BannerSlot,
     onSelect: (String) -> Unit,
     onEdit: (ServerProfile) -> Unit,
+    onClickVpsBanner: () -> Unit,
     onAddClick: () -> Unit
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(20.dp),
-        verticalArrangement = Arrangement.SpaceBetween
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (servers.isEmpty()) {
-            Text(
-                text = stringResource(R.string.no_server_yet),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = stringResource(R.string.no_server_yet),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
@@ -464,8 +608,13 @@ private fun ServersScreen(
                     }
                 }
             }
-            Spacer(Modifier.height(12.dp))
         }
+
+        // Fixed VPS Recommendation / Sponsor Banner on Servers page
+        SponsorBannerCard(
+            banner = addVpsBanner,
+            onClick = onClickVpsBanner
+        )
 
         Button(
             onClick = onAddClick,
@@ -481,6 +630,8 @@ private fun ServersScreen(
 @Composable
 private fun AddVpsDialog(
     deployState: DeployUiState,
+    addVpsBanner: BannerSlot,
+    onOpenVpsGuide: () -> Unit,
     onDeploy: (
         nickname: String,
         host: String,
@@ -512,6 +663,14 @@ private fun AddVpsDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                // Fixed VPS Recommendation Banner at top of Add VPS dialog
+                if (!deployState.inProgress) {
+                    SponsorBannerCard(
+                        banner = addVpsBanner,
+                        onClick = onOpenVpsGuide
+                    )
+                }
+
                 OutlinedTextField(
                     value = nickname,
                     onValueChange = { nickname = it },
@@ -666,7 +825,7 @@ private fun AddVpsDialog(
                     val portNum = sshPortText.toIntOrNull()?.takeIf { it in 1..65535 } ?: 22
                     val passChars = if (!usePrivateKey) password.toCharArray() else null
                     val keyText = if (usePrivateKey) privateKey else null
-                    password = "" // clear UI state immediately
+                    password = ""
                     onDeploy(nickname, host, portNum, sshUser, passChars, keyText, enableHysteria2)
                 }
             ) {
@@ -677,6 +836,156 @@ private fun AddVpsDialog(
             TextButton(onClick = onDismiss, enabled = !deployState.inProgress) {
                 Text(stringResource(R.string.cancel))
             }
+        }
+    )
+}
+
+@Composable
+private fun RecommendedVpsDialog(
+    items: List<RecommendedVpsItem>,
+    guideUrl: String,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("精选高性价比 VPS 推荐") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "购买任意一台 Ubuntu 22.04/24.04 或 Debian 12 VPS，填入 IP 与密码即可自动部署（含推广返佣，支持开源维护）：",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                items.forEach { vps ->
+                    OutlinedCard(
+                        onClick = { openExternalUrl(context, vps.url) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(vps.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                Text(
+                                    vps.price,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Text(
+                                vps.highlights,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                OutlinedButton(
+                    onClick = { openExternalUrl(context, guideUrl) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("在官网查看完整图文购买教程")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
+        }
+    )
+}
+
+@Composable
+private fun SupportDeveloperDialog(
+    donations: DonationConfig,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Default.Favorite, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Text("支持开发者")
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(donations.note, style = MaterialTheme.typography.bodySmall)
+
+                // Online donation links (PayPal / Ko-fi / Afdian for Alipay+WeChat)
+                if (donations.paypalUrl.isNotBlank()) {
+                    Button(
+                        onClick = { openExternalUrl(context, donations.paypalUrl) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("通过 PayPal.Me 赞助") }
+                }
+                if (donations.kofiUrl.isNotBlank()) {
+                    OutlinedButton(
+                        onClick = { openExternalUrl(context, donations.kofiUrl) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("通过 Ko-fi 请喝咖啡") }
+                }
+                if (donations.afdianUrl.isNotBlank()) {
+                    OutlinedButton(
+                        onClick = { openExternalUrl(context, donations.afdianUrl) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("通过爱发电赞助（支持微信 / 支付宝）") }
+                }
+
+                // Crypto donations (USDT TRC20 / TON / BTC)
+                val validCrypto = donations.crypto.filter { it.address.isNotBlank() }
+                if (validCrypto.isNotEmpty()) {
+                    HorizontalDivider()
+                    Text("加密货币捐赠（点击复制地址）", style = MaterialTheme.typography.titleSmall)
+                    validCrypto.forEach { item ->
+                        OutlinedCard(
+                            onClick = {
+                                copyToClipboard(context, item.network, item.address, "已复制 ${item.network} 地址")
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(item.network, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        item.address,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    }
+                }
+
+                // Reserved notice for direct Alipay/WeChat later
+                if (donations.afdianUrl.isBlank() && donations.alipayTip.isBlank() && donations.wechatTip.isBlank()) {
+                    Text(
+                        text = "支付宝 / 微信收款通道将在后续通过云端配置直接上线，无需更新 App。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
         }
     )
 }
@@ -727,9 +1036,7 @@ private fun ServerDetailDialog(
                     onClick = {
                         val uri = server.toShareUri()
                         if (uri != null) {
-                            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            cm.setPrimaryClip(ClipData.newPlainText("Build MyVpn Node", uri))
-                            Toast.makeText(context, "已复制节点链接", Toast.LENGTH_SHORT).show()
+                            copyToClipboard(context, "Build MyVpn Node", uri, "已复制节点链接")
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
@@ -791,11 +1098,14 @@ private fun RulePickerDialog(
 
 @Composable
 private fun SettingsDialog(
+    monetization: MonetizationConfig,
     rulesUpdatedAt: String?,
     ruleUpdating: Boolean,
     ruleUpdateMessage: String?,
     recentLogs: List<String>,
     onUpdateRules: () -> Unit,
+    onOpenDonate: () -> Unit,
+    onOpenVpsGuide: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -809,6 +1119,24 @@ private fun SettingsDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                Button(
+                    onClick = onOpenDonate,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.size(8.dp))
+                    Text("支持开发者（捐赠 / 虚拟币）")
+                }
+
+                OutlinedButton(
+                    onClick = onOpenVpsGuide,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("精选 VPS 选购指南")
+                }
+
+                HorizontalDivider()
+
                 Text("分流规则更新", style = MaterialTheme.typography.titleSmall)
                 Text(
                     text = "本地缓存版本：${rulesUpdatedAt ?: "内置基础规则"}",
@@ -825,7 +1153,21 @@ private fun SettingsDialog(
                 ruleUpdateMessage?.let {
                     Text(it, style = MaterialTheme.typography.bodySmall)
                 }
+
                 HorizontalDivider()
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { openExternalUrl(context, monetization.websiteUrl) }) {
+                        Text("官网")
+                    }
+                    TextButton(onClick = { openExternalUrl(context, monetization.privacyUrl) }) {
+                        Text("隐私政策")
+                    }
+                    TextButton(onClick = { openExternalUrl(context, "https://github.com/Gouryella811/build-myvpn") }) {
+                        Text("GitHub")
+                    }
+                }
+
                 TextButton(onClick = { showLogs = !showLogs }) {
                     Text(if (showLogs) "收起诊断日志" else "查看诊断日志（排障用）")
                 }
@@ -833,16 +1175,13 @@ private fun SettingsDialog(
                     val logText = recentLogs.takeLast(20).joinToString("\n").ifBlank { "暂无运行日志" }
                     Text(logText, style = MaterialTheme.typography.bodySmall)
                     OutlinedButton(
-                        onClick = {
-                            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            cm.setPrimaryClip(ClipData.newPlainText("Build MyVpn Logs", logText))
-                            Toast.makeText(context, "已复制诊断日志", Toast.LENGTH_SHORT).show()
-                        },
+                        onClick = { copyToClipboard(context, "Build MyVpn Logs", logText, "已复制诊断日志") },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("复制诊断日志")
                     }
                 }
+
                 HorizontalDivider()
                 Text(stringResource(R.string.settings_privacy_note), style = MaterialTheme.typography.bodySmall)
                 Text(stringResource(R.string.settings_license_note), style = MaterialTheme.typography.bodySmall)
