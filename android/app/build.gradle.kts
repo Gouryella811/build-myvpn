@@ -13,8 +13,8 @@ android {
         applicationId = "com.buildmyvpn"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.0.3-beta"
+        versionCode = 5
+        versionName = "1.0.4-beta"
         vectorDrawables.useSupportLibrary = true
     }
 

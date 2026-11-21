@@ -47,10 +47,14 @@ class SingBoxConfigBuilderTest {
         )
         val root = Json.parseToJsonElement(raw).jsonObject
 
-        // Verify typed DNS servers
+        // Verify typed DNS servers and Android gvisor TUN stack
         val dnsServers = root["dns"]!!.jsonObject["servers"]!!.jsonArray
         assertEquals("local", dnsServers[0].jsonObject["type"]!!.jsonPrimitive.content)
-        assertEquals("udp", dnsServers[1].jsonObject["type"]!!.jsonPrimitive.content)
+        assertEquals("tcp", dnsServers[1].jsonObject["type"]!!.jsonPrimitive.content)
+
+        val tunIn = root["inbounds"]!!.jsonArray[0].jsonObject
+        assertEquals("gvisor", tunIn["stack"]!!.jsonPrimitive.content)
+        assertEquals("1500", tunIn["mtu"]!!.jsonPrimitive.content)
 
         // Verify route uses sniff + hijack-dns + fail-closed final=proxy (no rule_set since files missing)
         val route = root["route"]!!.jsonObject

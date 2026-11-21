@@ -65,13 +65,13 @@ object SingBoxConfigBuilder {
                 add(buildJsonObject {
                     put("type", "tun")
                     put("tag", "tun-in")
-                    put("mtu", 9000)
+                    put("mtu", 1500)
                     put("address", buildJsonArray {
                         add(JsonPrimitive("172.19.0.1/30"))
                     })
                     put("auto_route", true)
                     put("strict_route", true)
-                    put("stack", "system")
+                    put("stack", "gvisor")
                 })
             })
             put("outbounds", buildJsonArray {
@@ -81,7 +81,7 @@ object SingBoxConfigBuilder {
                     put("tag", "direct")
                 })
             })
-            put("route", buildRouteBlock(proxyMode, useRegionRuleSet, localRuleFiles))
+            put("route", buildRouteBlock(profile, proxyMode, useRegionRuleSet, localRuleFiles))
         }
         return prettyJson.encodeToString(JsonObject.serializer(), config)
     }
@@ -94,7 +94,7 @@ object SingBoxConfigBuilder {
             })
             add(buildJsonObject {
                 put("tag", "dns-remote")
-                put("type", "udp")
+                put("type", "tcp")
                 put("server", "1.1.1.1")
                 put("server_port", 53)
                 put("detour", "proxy")
@@ -165,6 +165,7 @@ object SingBoxConfigBuilder {
     }
 
     private fun buildRouteBlock(
+        profile: ServerProfile,
         proxyMode: ProxyMode,
         useRegionRuleSet: Boolean,
         localRuleFiles: LocalRuleFiles?
@@ -195,6 +196,15 @@ object SingBoxConfigBuilder {
                 put("protocol", "dns")
                 put("action", "hijack-dns")
             })
+            // Reject HTTP/3 QUIC (UDP 443) over TCP-based VLESS+REALITY so browsers cleanly use
+            // HTTP/2 over TCP+BBR without QUIC-over-TCP congestion meltdown or mux EOF drops.
+            if (profile.activeTransport == ActiveTransport.REALITY) {
+                add(buildJsonObject {
+                    put("network", "udp")
+                    put("port", 443)
+                    put("action", "reject")
+                })
+            }
             add(buildJsonObject {
                 put("ip_is_private", true)
                 put("outbound", "direct")

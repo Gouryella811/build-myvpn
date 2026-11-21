@@ -25,7 +25,10 @@ private data class ClashDelayResponse(val delay: Int)
  * Guarantees traffic traverses Phone -> VPN -> User VPS -> Test URL (never ICMP ping, never mocked).
  */
 class DelayTester(
-    private val probeUrl: String = "https://www.gstatic.com/generate_204",
+    private val probeUrls: List<String> = listOf(
+        "https://www.gstatic.com/generate_204",
+        "https://cp.cloudflare.com/generate_204"
+    ),
     private val timeoutMs: Int = 6000
 ) {
     private val json = Json { ignoreUnknownKeys = true }
@@ -35,6 +38,16 @@ class DelayTester(
         .build()
 
     suspend fun measureProxyDelay(clashApiSecret: String): DelayResult = withContext(Dispatchers.IO) {
+        var lastResult: DelayResult = DelayResult.Failed("no probe executed")
+        for (probeUrl in probeUrls) {
+            val res = probeSingle(clashApiSecret, probeUrl)
+            if (res is DelayResult.Success) return@withContext res
+            lastResult = res
+        }
+        lastResult
+    }
+
+    private fun probeSingle(clashApiSecret: String, probeUrl: String): DelayResult {
         val encodedUrl = URLEncoder.encode(probeUrl, "UTF-8")
         val endpoint = "http://${SingBoxConfigBuilder.CLASH_API_LISTEN}/proxies/proxy/delay?url=$encodedUrl&timeout=$timeoutMs"
         val request = Request.Builder()
@@ -43,12 +56,12 @@ class DelayTester(
             .get()
             .build()
 
-        runCatching {
+        return runCatching {
             httpClient.newCall(request).execute().use { resp ->
                 val body = resp.body?.string().orEmpty()
-                if (resp.code == 504) return@withContext DelayResult.Timeout
+                if (resp.code == 504) return@runCatching DelayResult.Timeout
                 if (!resp.isSuccessful) {
-                    return@withContext DelayResult.Failed("HTTP ${resp.code}: ${body.take(120)}")
+                    return@runCatching DelayResult.Failed("HTTP ${resp.code}: ${body.take(120)}")
                 }
                 val parsed = json.decodeFromString(ClashDelayResponse.serializer(), body)
                 if (parsed.delay > 0) DelayResult.Success(parsed.delay)
