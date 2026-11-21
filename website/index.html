@@ -1,90 +1,153 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Build MyVpn — 开源极简自建 VPS VPN 客户端</title>
-  <meta name="description" content="Build MyVpn 是一款免费开源的 Android 自建 VPN 客户端。不懂 Linux 也能输入 VPS 地址与密码自动部署 VLESS+REALITY 并开启 BBR 加速，一键安全连接。" />
+  <title>Build MyVpn — Free Open-Source Self-Hosted VPS VPN</title>
+  <meta name="description" content="Build MyVpn — Minimalist free & open-source Android self-hosted VPS VPN client. Enter VPS IP & SSH password to auto-deploy VLESS + REALITY with BBR." />
   <style>
-    :root {
-      --bg: #0b1020;
-      --surface: #121933;
-      --surface-2: #192347;
-      --text: #eef2ff;
-      --muted: #9aa7c7;
-      --accent: #4f8cff;
-      --accent-2: #22c55e;
-      --warn: #f59e0b;
-      --border: rgba(255, 255, 255, 0.09);
-      --radius: 14px;
+    /* Crisp Neutral Light Theme (06:00 - 18:59) */
+    :root, [data-theme="light"] {
+      --bg: #ffffff;
+      --surface: #f8f9fa;
+      --surface-hover: #f1f3f5;
+      --text: #111827;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --border: #e5e7eb;
+      --ad-bg: rgba(255, 255, 255, 0.96);
+      --ad-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
+      --radius: 12px;
     }
+
+    /* True Neutral Charcoal Dark Theme (19:00 - 05:59) — ZERO blue tint */
+    [data-theme="dark"] {
+      --bg: #0d0d0f;
+      --surface: #161618;
+      --surface-hover: #1f1f22;
+      --text: #f4f4f5;
+      --muted: #a1a1aa;
+      --accent: #3b82f6;
+      --accent-hover: #60a5fa;
+      --border: #27272a;
+      --ad-bg: rgba(22, 22, 24, 0.96);
+      --ad-shadow: 0 -4px 20px rgba(0, 0, 0, 0.45);
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Noto Sans SC", sans-serif;
-      background: radial-gradient(circle at top, #17224a 0%, var(--bg) 52%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Noto Sans SC", "Hiragino Sans", sans-serif;
+      background: var(--bg);
       color: var(--text);
       line-height: 1.65;
+      transition: background-color 0.2s ease, color 0.2s ease;
+      padding-bottom: 84px; /* Reserve space for fixed bottom ad bar */
     }
     a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
-    .container { max-width: 980px; margin: 0 auto; padding: 0 20px; }
+    .container { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+
     header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 20px 0; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+      padding: 18px 0; border-bottom: 1px solid var(--border);
     }
-    .brand { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.3px; }
+    .brand { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.2px; color: var(--text); }
     .brand span { color: var(--accent); }
-    nav { display: flex; gap: 18px; align-items: center; font-size: 0.95rem; }
-    .lang-btn {
-      background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
-      padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.85rem;
+    nav { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 0.92rem; }
+    nav a { color: var(--muted); }
+    nav a:hover { color: var(--text); text-decoration: none; }
+
+    .ctrl-select, .ctrl-btn {
+      background: var(--surface); color: var(--text); border: 1px solid var(--border);
+      padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 0.84rem;
+      font-family: inherit;
     }
-    .hero { text-align: center; padding: 64px 0 42px; }
+    .ctrl-select:hover, .ctrl-btn:hover { background: var(--surface-hover); }
+
+    .hero { text-align: center; padding: 64px 0 40px; }
     .pill {
-      display: inline-block; padding: 5px 14px; border-radius: 999px;
-      background: rgba(79, 140, 255, 0.14); color: #9ec0ff; font-size: 0.85rem; margin-bottom: 16px;
+      display: inline-block; padding: 4px 12px; border-radius: 999px;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--muted); font-size: 0.84rem; margin-bottom: 16px;
     }
-    h1 { font-size: clamp(2rem, 4.5vw, 3rem); line-height: 1.2; margin-bottom: 16px; }
-    .subtitle { max-width: 680px; margin: 0 auto 28px; color: var(--muted); font-size: 1.08rem; }
-    .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    h1 { font-size: clamp(1.9rem, 4.4vw, 2.85rem); line-height: 1.22; letter-spacing: -0.5px; margin-bottom: 16px; }
+    .subtitle { max-width: 650px; margin: 0 auto 28px; color: var(--muted); font-size: 1.05rem; }
+    .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
     .btn {
-      display: inline-flex; align-items: center; gap: 8px; padding: 13px 24px;
-      border-radius: 10px; font-weight: 600; font-size: 1rem; transition: opacity 0.15s;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 12px 22px; border-radius: 10px; font-weight: 600; font-size: 0.96rem;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
     }
-    .btn:hover { opacity: 0.9; text-decoration: none; }
-    .btn-primary { background: var(--accent); color: #fff; }
-    .btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
-    section { padding: 44px 0; }
-    h2 { font-size: 1.6rem; margin-bottom: 18px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; }
+    .btn:hover { text-decoration: none; }
+    .btn-primary { background: var(--accent); color: #ffffff; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--surface-hover); }
+
+    section { padding: 38px 0; }
+    h2 { font-size: 1.45rem; letter-spacing: -0.3px; margin-bottom: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
     .card {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--radius); padding: 20px;
     }
-    .card h3 { font-size: 1.1rem; margin-bottom: 8px; }
-    .card p { color: var(--muted); font-size: 0.94rem; }
-    .price-tag {
-      display: inline-block; margin: 8px 0; padding: 3px 10px; border-radius: 6px;
-      background: rgba(34, 197, 94, 0.15); color: #7ef0a8; font-size: 0.85rem; font-weight: 600;
+    .card h3 { font-size: 1.05rem; margin-bottom: 6px; color: var(--text); }
+    .card p { color: var(--muted); font-size: 0.92rem; }
+
+    .sponsor-box {
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+      background: var(--surface); border: 1px dashed var(--border);
+      border-radius: var(--radius); padding: 22px;
     }
-    .ad-slot {
-      margin: 24px auto; padding: 18px; text-align: center;
-      border: 1px dashed var(--border); border-radius: var(--radius);
-      color: var(--muted); font-size: 0.88rem; background: rgba(255,255,255,0.02);
-    }
+    .sponsor-box p { color: var(--muted); font-size: 0.92rem; margin-top: 4px; }
+
     .crypto-row {
       display: flex; align-items: center; justify-content: space-between; gap: 12px;
-      background: var(--surface-2); padding: 12px 14px; border-radius: 10px; margin-top: 10px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; word-break: break-all;
+      background: var(--bg); border: 1px solid var(--border);
+      padding: 10px 14px; border-radius: 9px; margin-top: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.84rem; word-break: break-all;
     }
     .copy-btn {
       flex-shrink: 0; background: var(--accent); color: #fff; border: none;
-      padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.82rem;
+      padding: 6px 12px; border-radius: 7px; cursor: pointer; font-size: 0.82rem;
     }
+    .copy-btn:hover { background: var(--accent-hover); }
+
     footer {
-      border-top: 1px solid var(--border); padding: 28px 0 44px;
-      color: var(--muted); font-size: 0.88rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+      border-top: 1px solid var(--border); padding: 26px 0 32px;
+      color: var(--muted); font-size: 0.86rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
     }
+
+    /* Single Unobtrusive Fixed Bottom Ad Bar (Google AdSense / Direct Sponsor Slot) */
+    .fixed-ad-bar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+      background: var(--ad-bg); border-top: 1px solid var(--border);
+      box-shadow: var(--ad-shadow); backdrop-filter: blur(10px);
+    }
+    .fixed-ad-inner {
+      max-width: 960px; margin: 0 auto; padding: 10px 20px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .ad-link {
+      display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;
+      color: var(--text); text-decoration: none;
+    }
+    .ad-link:hover { text-decoration: none; }
+    .ad-badge {
+      flex-shrink: 0; font-size: 0.72rem; font-weight: 700;
+      padding: 2px 6px; border-radius: 4px;
+      border: 1px solid var(--border); color: var(--muted); background: var(--surface);
+    }
+    .ad-text { min-width: 0; }
+    .ad-title { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ad-sub { font-size: 0.8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ad-close {
+      flex-shrink: 0; background: transparent; border: none; color: var(--muted);
+      cursor: pointer; font-size: 1.15rem; line-height: 1; padding: 4px 6px; border-radius: 6px;
+    }
+    .ad-close:hover { background: var(--surface-hover); color: var(--text); }
   </style>
 </head>
 <body>
@@ -93,10 +156,11 @@
       <div class="brand">Build <span>MyVpn</span></div>
       <nav>
         <a href="#features" data-i18n="nav_features">核心特点</a>
-        <a href="#vps-guide" data-i18n="nav_vps">VPS 推荐</a>
+        <a href="#sponsor" data-i18n="nav_sponsor">广告招租</a>
         <a href="#donate" data-i18n="nav_donate">支持开发</a>
         <a href="https://github.com/Gouryella811/build-myvpn" target="_blank" rel="noopener">GitHub</a>
-        <button class="lang-btn" id="langToggle">EN / 中文</button>
+        <select class="ctrl-select" id="langSelect" aria-label="Language"></select>
+        <button class="ctrl-btn" id="themeToggle" type="button" title="Theme">Auto</button>
       </nav>
     </header>
 
@@ -104,7 +168,7 @@
       <div class="pill" data-i18n="hero_pill">Android · 免费开源 GPLv3+ · 零账号 · 自备 VPS</div>
       <h1 data-i18n="hero_title">不懂 Linux，3 分钟拥有自己的专属 VPN</h1>
       <p class="subtitle" data-i18n="hero_sub">
-        只需填入你购买的 VPS 地址与 SSH 密码，Build MyVpn 自动完成环境检测、BBR 加速与 VLESS + REALITY 部署，一键安全连接。
+        只需填入你自备 VPS 的地址与 SSH 密码，Build MyVpn 自动完成环境检测、BBR 加速与 VLESS + REALITY 部署，一键安全连接。
       </p>
       <div class="cta-row">
         <a class="btn btn-primary" href="https://github.com/Gouryella811/build-myvpn/actions" target="_blank" rel="noopener" data-i18n="btn_download">
@@ -116,11 +180,6 @@
       </div>
     </div>
 
-    <!-- AdSense / Sponsor 网页广告预留位（上线 AdSense 后将 <ins> 代码放入此处） -->
-    <div class="ad-slot" id="web-ad-top">
-      <span data-i18n="ad_placeholder">网页赞助 / Google AdSense 广告预留位（不影响 App 开源纯净度）</span>
-    </div>
-
     <section id="features">
       <h2 data-i18n="sec_features">为什么选择 Build MyVpn？</h2>
       <div class="grid">
@@ -129,35 +188,40 @@
           <p data-i18n="f1_d">只有「连接」和「服务器」两个主页面。无需注册、无订阅套路、不运营任何公共节点，所有数据掌握在你自己手里。</p>
         </div>
         <div class="card">
-          <h3 data-i18n="f2_t">VLESS + REALITY & 自动 BBR</h3>
-          <p data-i18n="f2_d">默认部署免域名、强抗封锁的 VLESS + REALITY（TCP 443），并按系统自动开启 TCP BBR 加速，小白也能跑满带宽。</p>
+          <h3 data-i18n="f2_t">VLESS + REALITY &amp; 自动 BBR</h3>
+          <p data-i18n="f2_d">默认部署免域名、强抗封锁的 VLESS + REALITY（TCP 443），并按系统自动开启 TCP BBR 加速，连接稳定流畅。</p>
         </div>
         <div class="card">
           <h3 data-i18n="f3_t">SSH 密码用后即焚</h3>
           <p data-i18n="f3_d">支持 SSH 公钥指纹校验（TOFU）防中间人攻击；SSH 密码仅用于部署当下，完成后立即从内存擦除，绝不落盘保存。</p>
         </div>
         <div class="card">
-          <h3 data-i18n="f4_t">智能分流与真实延迟</h3>
-          <p data-i18n="f4_d">支持通用、中国、伊朗、俄罗斯四套分流规则，每日自动校验更新；延迟测试走真实代理出口，拒绝虚假 Ping。</p>
+          <h3 data-i18n="f4_t">智能分流与多语言支持</h3>
+          <p data-i18n="f4_d">支持通用、中国、伊朗、俄罗斯四套分流规则与 17 国语言界面，提供真实代理延迟与实时网速显示。</p>
         </div>
       </div>
     </section>
 
-    <section id="vps-guide">
-      <h2 data-i18n="sec_vps">新手高性价比 VPS 选购推荐</h2>
-      <p style="color: var(--muted); margin-bottom: 18px;" data-i18n="vps_intro">
-        购买任意一台 Ubuntu 22.04 / 24.04 或 Debian 12 的海外 VPS，记下 IP 和 root 密码填入 Build MyVpn 即可自动完成部署（通过下方推荐链接购买可支持项目持续维护）：
-      </p>
-      <div class="grid" id="vps-list"></div>
+    <section id="sponsor">
+      <h2 data-i18n="sec_sponsor">广告位招租与商业赞助</h2>
+      <div class="sponsor-box">
+        <div>
+          <h3 data-i18n="sp_title">面向全球自建代理与开发者用户的极简展示位</h3>
+          <p data-i18n="sp_desc">全站仅保留底部单栏固定广告位，预留给 Google AdSense 及合规商业赞助商，不弹窗、不干扰正常使用。</p>
+        </div>
+        <a class="btn btn-secondary" id="sponsorContactBtn" href="mailto:ad@build-myvpn.pages.dev" data-i18n="sp_btn">
+          联系广告合作
+        </a>
+      </div>
     </section>
 
     <section id="donate">
       <h2 data-i18n="sec_donate">支持开发者（自愿捐赠）</h2>
       <div class="card">
-        <p id="donate-note" style="margin-bottom: 14px;">
+        <p id="donate-note" data-i18n="donate_note" style="margin-bottom: 14px;">
           Build MyVpn 永久免费开源，所有捐赠完全自愿，不解锁任何额外功能。
         </p>
-        <div class="cta-row" id="donate-links" style="justify-content: flex-start; margin-bottom: 14px;"></div>
+        <div class="cta-row" id="donate-links" style="justify-content: flex-start; margin-bottom: 12px;"></div>
         <div id="crypto-list"></div>
       </div>
     </section>
@@ -171,85 +235,554 @@
     </footer>
   </div>
 
+  <!-- Single Unobtrusive Fixed Bottom Ad Bar (Reserved for Google AdSense / Direct Ads) -->
+  <div class="fixed-ad-bar" id="fixedAdBar">
+    <div class="fixed-ad-inner">
+      <!-- To enable Google AdSense later, replace .ad-link below with your AdSense <ins class="adsbygoogle"> unit -->
+      <a class="ad-link" id="bottomAdLink" href="#sponsor">
+        <span class="ad-badge" id="bottomAdBadge">AD</span>
+        <div class="ad-text">
+          <div class="ad-title" id="bottomAdTitle" data-i18n="ad_default_title">广告位招租 · 预留 Google 广告与商业赞助横幅</div>
+          <div class="ad-sub" id="bottomAdSub" data-i18n="ad_default_sub">极简底部单栏，不影响正常浏览与使用</div>
+        </div>
+      </a>
+      <button class="ad-close" id="closeAdBtn" type="button" aria-label="Close">×</button>
+    </div>
+  </div>
+
   <script>
+    // 1. Time-based Auto Light/Dark Theme (06:00-18:59 Light, 19:00-05:59 Dark) + Manual Toggle
+    const THEME_KEY = "build_myvpn_theme_mode"; // "auto" | "light" | "dark"
+    let themeMode = localStorage.getItem(THEME_KEY) || "auto";
+
+    function resolveAutoTheme() {
+      const hour = new Date().getHours();
+      return (hour >= 6 && hour < 19) ? "light" : "dark";
+    }
+
+    function applyTheme() {
+      const effective = themeMode === "auto" ? resolveAutoTheme() : themeMode;
+      document.documentElement.setAttribute("data-theme", effective);
+      updateThemeButtonLabel();
+    }
+
+    // 2. Full 17-Language Support (English & Simplified Chinese pinned first as recommended)
+    const LANG_OPTIONS = [
+      { code: "en", label: "English ★" },
+      { code: "zh-CN", label: "简体中文 ★" },
+      { code: "zh-TW", label: "繁體中文" },
+      { code: "ja", label: "日本語" },
+      { code: "ko", label: "한국어" },
+      { code: "th", label: "ไทย" },
+      { code: "vi", label: "Tiếng Việt" },
+      { code: "id", label: "Bahasa Indonesia" },
+      { code: "hi", label: "हिन्दी" },
+      { code: "ru", label: "Русский" },
+      { code: "fa", label: "فارسی" },
+      { code: "ar", label: "العربية" },
+      { code: "tr", label: "Türkçe" },
+      { code: "fr", label: "Français" },
+      { code: "de", label: "Deutsch" },
+      { code: "es", label: "Español" },
+      { code: "pt", label: "Português" }
+    ];
+
+    const RTL_LANGS = new Set(["fa", "ar"]);
+
     const I18N = {
-      zh: {
-        nav_features: "核心特点", nav_vps: "VPS 推荐", nav_donate: "支持开发",
-        hero_pill: "Android · 免费开源 GPLv3+ · 零账号 · 自备 VPS",
-        hero_title: "不懂 Linux，3 分钟拥有自己的专属 VPN",
-        hero_sub: "只需填入你购买的 VPS 地址与 SSH 密码，Build MyVpn 自动完成环境检测、BBR 加速与 VLESS + REALITY 部署，一键安全连接。",
-        btn_download: "下载 Android APK", btn_source: "查看开源代码",
-        ad_placeholder: "网页赞助 / Google AdSense 广告预留位（不影响 App 开源纯净度）",
-        sec_features: "为什么选择 Build MyVpn？",
-        f1_t: "极简双页交互", f1_d: "只有「连接」和「服务器」两个主页面。无需注册、无订阅套路、不运营任何公共节点，所有数据掌握在你自己手里。",
-        f2_t: "VLESS + REALITY & 自动 BBR", f2_d: "默认部署免域名、强抗封锁的 VLESS + REALITY（TCP 443），并按系统自动开启 TCP BBR 加速，小白也能跑满带宽。",
-        f3_t: "SSH 密码用后即焚", f3_d: "支持 SSH 公钥指纹校验（TOFU）防中间人攻击；SSH 密码仅用于部署当下，完成后立即从内存擦除，绝不落盘保存。",
-        f4_t: "智能分流与真实延迟", f4_d: "支持通用、中国、伊朗、俄罗斯四套分流规则，每日自动校验更新；延迟测试走真实代理出口，拒绝虚假 Ping。",
-        sec_vps: "新手高性价比 VPS 选购推荐",
-        vps_intro: "购买任意一台 Ubuntu 22.04 / 24.04 或 Debian 12 的海外 VPS，记下 IP 和 root 密码填入 Build MyVpn 即可自动完成部署（通过下方推荐链接购买可支持项目持续维护）：",
-        sec_donate: "支持开发者（自愿捐赠）", link_privacy: "隐私政策"
-      },
-      en: {
-        nav_features: "Features", nav_vps: "VPS Guide", nav_donate: "Donate",
+      "en": {
+        nav_features: "Features", nav_sponsor: "Advertise", nav_donate: "Donate",
         hero_pill: "Android · Free & Open Source GPLv3+ · Self-Hosted VPS",
         hero_title: "Your Own Private VPN in 3 Minutes — No Linux Needed",
         hero_sub: "Enter your VPS address and SSH credentials. Build MyVpn automatically enables BBR, deploys VLESS + REALITY, and connects in one tap.",
         btn_download: "Download Android APK", btn_source: "View Source on GitHub",
-        ad_placeholder: "Web Sponsor / Google AdSense Slot (keeps the Android APK 100% clean GPLv3)",
         sec_features: "Why Build MyVpn?",
         f1_t: "Minimal Two-Tab Design", f1_d: "Only Connect and Servers. No accounts, no subscriptions, no shared proxy nodes—you fully own your server.",
         f2_t: "VLESS + REALITY & Auto BBR", f2_d: "Domain-free anti-censorship VLESS + REALITY on TCP 443 with OS-adaptive TCP BBR acceleration out of the box.",
         f3_t: "Use-and-Discard SSH Credentials", f3_d: "TOFU SSH host key fingerprint checks prevent MITM attacks. SSH passwords are wiped from memory right after deployment.",
-        f4_t: "Smart Routing & Real Latency", f4_d: "Daily validated General / CN / IR / RU routing rules with fail-closed leak protection and real proxy egress latency checks.",
-        sec_vps: "Recommended Beginner-Friendly VPS Providers",
-        vps_intro: "Rent any Ubuntu 22.04/24.04 or Debian 12 VPS, then enter its IP and password in Build MyVpn (referral links help fund ongoing development):",
-        sec_donate: "Support the Developer (Voluntary)", link_privacy: "Privacy Policy"
+        f4_t: "Smart Routing & 17 Languages", f4_d: "General, China, Iran, and Russia routing rules with 17 languages, real proxy latency, and live speed monitoring.",
+        sec_sponsor: "Advertising & Sponsorship",
+        sp_title: "Clean Ad Slot Open for Sponsors & Google AdSense",
+        sp_desc: "Only one slim fixed bottom banner is reserved for Google AdSense or direct sponsors—no popups, never interrupts usage.",
+        sp_btn: "Inquire About Ad Slot",
+        sec_donate: "Support the Developer (Voluntary)",
+        donate_note: "Build MyVpn is 100% free and open source. All donations are voluntary and unlock no paid features.",
+        link_privacy: "Privacy Policy",
+        ad_default_title: "Ad Slot Available · Reserved for Google AdSense & Sponsors",
+        ad_default_sub: "Single unobtrusive bottom banner — never interrupts your experience",
+        copy: "Copy", copied: "Copied",
+        theme_auto: "Auto", theme_light: "Light", theme_dark: "Dark"
+      },
+      "zh-CN": {
+        nav_features: "核心特点", nav_sponsor: "广告招租", nav_donate: "支持开发",
+        hero_pill: "Android · 免费开源 GPLv3+ · 零账号 · 自备 VPS",
+        hero_title: "不懂 Linux，3 分钟拥有自己的专属 VPN",
+        hero_sub: "只需填入你自备 VPS 的地址与 SSH 密码，Build MyVpn 自动完成环境检测、BBR 加速与 VLESS + REALITY 部署，一键安全连接。",
+        btn_download: "下载 Android APK", btn_source: "查看开源代码",
+        sec_features: "为什么选择 Build MyVpn？",
+        f1_t: "极简双页交互", f1_d: "只有「连接」和「服务器」两个主页面。无需注册、无订阅套路、不运营任何公共节点，所有数据掌握在你自己手里。",
+        f2_t: "VLESS + REALITY & 自动 BBR", f2_d: "默认部署免域名、强抗封锁的 VLESS + REALITY（TCP 443），并按系统自动开启 TCP BBR 加速，连接稳定流畅。",
+        f3_t: "SSH 密码用后即焚", f3_d: "支持 SSH 公钥指纹校验（TOFU）防中间人攻击；SSH 密码仅用于部署当下，完成后立即从内存擦除，绝不落盘保存。",
+        f4_t: "智能分流与 17 国语言", f4_d: "支持通用、中国、伊朗、俄罗斯四套分流规则与 17 国语言界面，提供真实代理延迟与实时网速显示。",
+        sec_sponsor: "广告位招租与商业赞助",
+        sp_title: "预留广告展示位 · 欢迎商业赞助与合作",
+        sp_desc: "全站仅保留底部单栏固定广告位，预留给 Google AdSense 及合规商业赞助商，不弹窗、不干扰正常使用。",
+        sp_btn: "联系广告合作",
+        sec_donate: "支持开发者（自愿捐赠）",
+        donate_note: "Build MyVpn 永久免费开源，所有捐赠完全自愿，不解锁任何额外功能。",
+        link_privacy: "隐私政策",
+        ad_default_title: "广告位招租 · 预留 Google 广告与商业赞助横幅",
+        ad_default_sub: "极简底部单栏，不影响正常浏览与使用",
+        copy: "复制", copied: "已复制",
+        theme_auto: "自动", theme_light: "明亮", theme_dark: "暗黑"
+      },
+      "zh-TW": {
+        nav_features: "核心特點", nav_sponsor: "廣告招租", nav_donate: "支持開發",
+        hero_pill: "Android · 免費開源 GPLv3+ · 零帳號 · 自備 VPS",
+        hero_title: "不懂 Linux，3 分鐘擁有自己的專屬 VPN",
+        hero_sub: "只需填入自備 VPS 的位址與 SSH 密碼，Build MyVpn 自動完成 BBR 加速與 VLESS + REALITY 部署，一鍵連線。",
+        btn_download: "下載 Android APK", btn_source: "檢視開源程式碼",
+        sec_features: "為什麼選擇 Build MyVpn？",
+        f1_t: "極簡雙頁介面", f1_d: "只有「連線」與「伺服器」兩頁，無需註冊、不營運公共節點。",
+        f2_t: "VLESS + REALITY 與自動 BBR", f2_d: "免網域、強抗封鎖，依系統自動啟用 TCP BBR 加速。",
+        f3_t: "SSH 密碼用後即焚", f3_d: "支援 TOFU 指紋驗證，密碼部署完成即自記憶體清除。",
+        f4_t: "智慧分流與 17 國語言", f4_d: "支援通用/中/伊/俄分流規則、17 國語言、真實延遲與即時網速。",
+        sec_sponsor: "廣告位招租與商業贊助",
+        sp_title: "預留廣告展示位 · 歡迎商業贊助合作",
+        sp_desc: "全站僅保留底部單欄固定廣告位，預留給 Google AdSense 與贊助商，絕不干擾使用。",
+        sp_btn: "聯絡廣告合作",
+        sec_donate: "支持開發者（自願贊助）",
+        donate_note: "Build MyVpn 永久免費開源，所有贊助完全自願。",
+        link_privacy: "隱私權政策",
+        ad_default_title: "廣告位招租 · 預留 Google 廣告與贊助橫幅",
+        ad_default_sub: "極簡底部單欄，不影響正常使用",
+        copy: "複製", copied: "已複製",
+        theme_auto: "自動", theme_light: "明亮", theme_dark: "暗黑"
+      },
+      "ja": {
+        nav_features: "特徴", nav_sponsor: "広告掲載", nav_donate: "支援",
+        hero_pill: "Android · 無料オープンソース GPLv3+ · 自前VPS",
+        hero_title: "Linux不要、3分で自分専用のVPNを構築",
+        hero_sub: "VPSのIPとSSHパスワードを入力するだけで、BBR加速とVLESS + REALITYを自動構築しワンタップ接続。",
+        btn_download: "Android APKをダウンロード", btn_source: "GitHubでソースを見る",
+        sec_features: "Build MyVpnが選ばれる理由",
+        f1_t: "極限までシンプルな2画面", f1_d: "「接続」と「サーバー」のみ。登録不要、共有ノードなし。",
+        f2_t: "VLESS + REALITY & 自動BBR", f2_d: "ドメイン不要で検閲耐性が高く、OSに応じてTCP BBRを自動有効化。",
+        f3_t: "SSHパスワード非保存", f3_d: "TOFU指紋検証に対応し、構築完了後にパスワードを即座に破棄。",
+        f4_t: "スマート分流 & 17言語対応", f4_d: "一般/中国/イラン/ロシアルール、17言語、実測遅延と通信速度に対応。",
+        sec_sponsor: "広告枠・スポンサー募集",
+        sp_title: "Google AdSense・スポンサー向け広告枠",
+        sp_desc: "操作を妨げない下部固定バナー1枠のみを用意しています。",
+        sp_btn: "広告掲載のお問い合わせ",
+        sec_donate: "開発者を支援（任意）",
+        donate_note: "Build MyVpnは完全無料・オープンソースです。寄付はすべて任意です。",
+        link_privacy: "プライバシーポリシー",
+        ad_default_title: "広告枠募集中 · Google広告 / スポンサーバナー予定枠",
+        ad_default_sub: "利用を妨げないスリムな下部固定枠",
+        copy: "コピー", copied: "コピー済",
+        theme_auto: "自動", theme_light: "ライト", theme_dark: "ダーク"
+      },
+      "ko": {
+        nav_features: "특징", nav_sponsor: "광고 문의", nav_donate: "후원",
+        hero_pill: "Android · 무료 오픈소스 GPLv3+ · 개인 VPS",
+        hero_title: "리눅스 몰라도 3분 만에 나만의 VPN 구축",
+        hero_sub: "VPS 주소와 SSH 비밀번호만 입력하면 BBR 가속과 VLESS + REALITY를 자동 배포하고 원탭으로 연결합니다.",
+        btn_download: "Android APK 다운로드", btn_source: "GitHub 소스 보기",
+        sec_features: "왜 Build MyVpn인가요?",
+        f1_t: "미니멀 2탭 디자인", f1_d: "연결과 서버 두 화면만 제공. 회원가입·구독·공용 노드 없음.",
+        f2_t: "VLESS + REALITY & 자동 BBR", f2_d: "도메인 불필요, 강력한 차단 우회 및 OS 맞춤형 BBR 자동 활성화.",
+        f3_t: "SSH 비밀번호 즉시 파기", f3_d: "TOFU 지문 검증을 지원하며 배포 직후 비밀번호를 메모리에서 삭제합니다.",
+        f4_t: "스마트 라우팅 & 17개 언어", f4_d: "일반/중국/이란/러시아 규칙과 17개 언어, 실제 지연 및 실시간 속도 제공.",
+        sec_sponsor: "광고 및 스폰서 문의",
+        sp_title: "Google AdSense 및 스폰서 전용 광고 배너",
+        sp_desc: "사용을 방해하지 않는 하단 고정 배너 1개만 운영합니다.",
+        sp_btn: "광고 제휴 문의",
+        sec_donate: "개발자 후원 (자발적)",
+        donate_note: "Build MyVpn은 무료 오픈소스이며 모든 후원은 자발적입니다.",
+        link_privacy: "개인정보처리방침",
+        ad_default_title: "광고 배너 모집 · Google AdSense / 스폰서 자리",
+        ad_default_sub: "사용성을 해치지 않는 슬림 하단 고정 배너",
+        copy: "복사", copied: "복사됨",
+        theme_auto: "자동", theme_light: "라이트", theme_dark: "다크"
+      },
+      "th": {
+        nav_features: "จุดเด่น", nav_sponsor: "ลงโฆษณา", nav_donate: "สนับสนุน",
+        hero_pill: "Android · โอเพนซอร์สฟรี GPLv3+ · VPS ส่วนตัว",
+        hero_title: "สร้าง VPN ส่วนตัวใน 3 นาที ไม่ต้องรู้ Linux",
+        hero_sub: "เพียงกรอก IP และรหัสผ่าน SSH ของ VPS ระบบจะเปิด BBR และติดตั้ง VLESS + REALITY อัตโนมัติ",
+        btn_download: "ดาวน์โหลด Android APK", btn_source: "ดูซอร์สโค้ดบน GitHub",
+        sec_features: "ทำไมต้อง Build MyVpn?",
+        f1_t: "เรียบง่ายเพียง 2 แท็บ", f1_d: "มีเฉพาะหน้าเชื่อมต่อและเซิร์ฟเวอร์ ไม่ต้องสมัครสมาชิก",
+        f2_t: "VLESS + REALITY และ BBR อัตโนมัติ", f2_d: "ไม่ต้องใช้โดเมน ทนต่อการบล็อก และเปิด BBR ตามระบบอัตโนมัติ",
+        f3_t: "ไม่บันทึกรหัสผ่าน SSH", f3_d: "ตรวจลายนิ้วมือ TOFU และลบรหัสผ่านทันทีหลังติดตั้งเสร็จ",
+        f4_t: "รองรับ 17 ภาษาและแบ่งเส้นทางอัจฉริยะ", f4_d: "รองรับกฎทั่วไป/จีน/อิหร่าน/รัสเซีย พร้อมความเร็วแบบเรียลไทม์",
+        sec_sponsor: "พื้นที่โฆษณาและผู้สนับสนุน",
+        sp_title: "พื้นที่แบนเนอร์สำหรับ Google AdSense และผู้สนับสนุน",
+        sp_desc: "มีเฉพาะแถบโฆษณาด้านล่าง 1 ตำแหน่ง ไม่รบกวนการใช้งาน",
+        sp_btn: "ติดต่อลงโฆษณา",
+        sec_donate: "สนับสนุนนักพัฒนา",
+        donate_note: "Build MyVpn ฟรีและโอเพนซอร์ส การบริจาคเป็นความสมัครใจ",
+        link_privacy: "นโยบายความเป็นส่วนตัว",
+        ad_default_title: "พื้นที่โฆษณาว่าง · สำหรับ Google AdSense และผู้สนับสนุน",
+        ad_default_sub: "แบนเนอร์ด้านล่างขนาดกะทัดรัด ไม่รบกวนการใช้งาน",
+        copy: "คัดลอก", copied: "คัดลอกแล้ว",
+        theme_auto: "อัตโนมัติ", theme_light: "สว่าง", theme_dark: "มืด"
+      },
+      "vi": {
+        nav_features: "Tính năng", nav_sponsor: "Quảng cáo", nav_donate: "Ủng hộ",
+        hero_pill: "Android · Mã nguồn mở miễn phí GPLv3+ · VPS riêng",
+        hero_title: "Tự tạo VPN riêng trong 3 phút — Không cần biết Linux",
+        hero_sub: "Chỉ cần nhập IP VPS và mật khẩu SSH, Build MyVpn tự động bật BBR và triển khai VLESS + REALITY.",
+        btn_download: "Tải Android APK", btn_source: "Xem mã nguồn GitHub",
+        sec_features: "Tại sao chọn Build MyVpn?",
+        f1_t: "Tối giản 2 tab", f1_d: "Chỉ gồm Kết nối và Máy chủ. Không tài khoản, không máy chủ dùng chung.",
+        f2_t: "VLESS + REALITY & BBR tự động", f2_d: "Không cần tên miền, chống chặn mạnh và tự bật tăng tốc BBR.",
+        f3_t: "Không lưu mật khẩu SSH", f3_d: "Xác minh vân tay TOFU và xóa mật khẩu khỏi bộ nhớ ngay sau khi cài.",
+        f4_t: "Định tuyến thông minh & 17 ngôn ngữ", f4_d: "Hỗ trợ quy tắc Chung/Trung/Iran/Nga, 17 ngôn ngữ và đo tốc độ thực.",
+        sec_sponsor: "Cho thuê quảng cáo & Tài trợ",
+        sp_title: "Vị trí banner dành cho Google AdSense & Nhà tài trợ",
+        sp_desc: "Chỉ giữ 1 thanh banner mỏng cố định ở cuối trang, không làm phiền người dùng.",
+        sp_btn: "Liên hệ quảng cáo",
+        sec_donate: "Ủng hộ nhà phát triển",
+        donate_note: "Build MyVpn hoàn toàn miễn phí và mã nguồn mở.",
+        link_privacy: "Chính sách bảo mật",
+        ad_default_title: "Vị trí quảng cáo · Dành cho Google AdSense & Tài trợ",
+        ad_default_sub: "Thanh banner gọn nhẹ ở cuối trang, không gây phiền",
+        copy: "Sao chép", copied: "Đã chép",
+        theme_auto: "Tự động", theme_light: "Sáng", theme_dark: "Tối"
+      },
+      "id": {
+        nav_features: "Fitur", nav_sponsor: "Iklan", nav_donate: "Donasi",
+        hero_pill: "Android · Open Source Gratis GPLv3+ · VPS Sendiri",
+        hero_title: "VPN Pribadi dalam 3 Menit — Tanpa Perlu Linux",
+        hero_sub: "Masukkan IP VPS dan kata sandi SSH, Build MyVpn otomatis mengaktifkan BBR dan memasang VLESS + REALITY.",
+        btn_download: "Unduh Android APK", btn_source: "Lihat Kode di GitHub",
+        sec_features: "Mengapa Build MyVpn?",
+        f1_t: "Desain Minimalis 2 Tab", f1_d: "Hanya Hubungkan dan Server. Tanpa akun, tanpa langganan.",
+        f2_t: "VLESS + REALITY & BBR Otomatis", f2_d: "Tanpa domain, tahan blokir, dan otomatis aktifkan BBR.",
+        f3_t: "Sandi SSH Tidak Disimpan", f3_d: "Verifikasi sidik jari TOFU dan hapus sandi segera setelah deploy.",
+        f4_t: "Rute Pintar & 17 Bahasa", f4_d: "Aturan Umum/Tiongkok/Iran/Rusia, 17 bahasa, dan kecepatan real-time.",
+        sec_sponsor: "Slot Iklan & Sponsor",
+        sp_title: "Ruang Iklan Tersedia untuk Google AdSense & Sponsor",
+        sp_desc: "Hanya 1 banner tipis tetap di bawah halaman tanpa mengganggu penggunaan.",
+        sp_btn: "Hubungi untuk Iklan",
+        sec_donate: "Dukung Pengembang",
+        donate_note: "Build MyVpn gratis dan sumber terbuka. Semua donasi sukarela.",
+        link_privacy: "Kebijakan Privasi",
+        ad_default_title: "Slot Iklan Tersedia · Google AdSense & Sponsor",
+        ad_default_sub: "Banner bawah ringkas tanpa mengganggu pengalaman",
+        copy: "Salin", copied: "Disalin",
+        theme_auto: "Otomatis", theme_light: "Terang", theme_dark: "Gelap"
+      },
+      "hi": {
+        nav_features: "विशेषताएं", nav_sponsor: "विज्ञापन", nav_donate: "दान करें",
+        hero_pill: "Android · निःशुल्क ओपन सोर्स GPLv3+ · स्व-होस्टेड VPS",
+        hero_title: "बिना Linux के 3 मिनट में अपना निजी VPN बनाएं",
+        hero_sub: "बस अपने VPS का IP और SSH पासवर्ड डालें, Build MyVpn स्वतः BBR और VLESS + REALITY सेटअप करता है।",
+        btn_download: "Android APK डाउनलोड करें", btn_source: "GitHub पर कोड देखें",
+        sec_features: "Build MyVpn क्यों चुनें?",
+        f1_t: "मिनिमल 2-टैब डिज़ाइन", f1_d: "केवल कनेक्ट और सर्वर। कोई खाता या सब्सक्रिप्शन नहीं।",
+        f2_t: "VLESS + REALITY और ऑटो BBR", f2_d: "बिना डोमेन के मजबूत सुरक्षा और स्वतः BBR गति बढ़ाना।",
+        f3_t: "SSH पासवर्ड कभी सहेजा नहीं जाता", f3_d: "TOFU फ़िंगरप्रिंट जांच के बाद पासवर्ड मेमोरी से तुरंत हट जाता है।",
+        f4_t: "स्मार्ट राउटिंग और 17 भाषाएं", f4_d: "17 भाषाएं, लाइव स्पीड और वास्तविक लेटेंसी परीक्षण।",
+        sec_sponsor: "विज्ञापन और प्रायोजन",
+        sp_title: "Google AdSense और प्रायोजकों के लिए विज्ञापन स्थान",
+        sp_desc: "उपयोग में बाधा डाले बिना नीचे केवल एक स्लिम फिक्स्ड बैनर स्थान।",
+        sp_btn: "विज्ञापन के लिए संपर्क करें",
+        sec_donate: "डेवलपर का समर्थन करें",
+        donate_note: "Build MyVpn 100% निःशुल्क और ओपन सोर्स है।",
+        link_privacy: "गोपनीयता नीति",
+        ad_default_title: "विज्ञापन स्थान उपलब्ध · Google AdSense और प्रायोजक",
+        ad_default_sub: "नीचे एक हल्का बैनर, बिना किसी रुकावट के",
+        copy: "कॉपी", copied: "कॉपी हुआ",
+        theme_auto: "ऑटो", theme_light: "लाइट", theme_dark: "डार्क"
+      },
+      "ru": {
+        nav_features: "Возможности", nav_sponsor: "Реклама", nav_donate: "Поддержать",
+        hero_pill: "Android · Открытый исходный код GPLv3+ · Свой VPS",
+        hero_title: "Свой личный VPN за 3 минуты — без знаний Linux",
+        hero_sub: "Введите IP вашего VPS и пароль SSH: Build MyVpn сам включит BBR, установит VLESS + REALITY и подключится в одно касание.",
+        btn_download: "Скачать Android APK", btn_source: "Код на GitHub",
+        sec_features: "Почему Build MyVpn?",
+        f1_t: "Минимализм: всего 2 вкладки", f1_d: "Только Подключение и Серверы. Без регистрации, подписок и общих узлов.",
+        f2_t: "VLESS + REALITY и авто-BBR", f2_d: "Работает без домена, устойчив к блокировкам, автоматически включает TCP BBR.",
+        f3_t: "Пароли SSH не сохраняются", f3_d: "Проверка отпечатка TOFU и немедленная очистка пароля после установки.",
+        f4_t: "Умная маршрутизация и 17 языков", f4_d: "Правила для РФ/Китая/Ирана, 17 языков, реальная задержка и скорость.",
+        sec_sponsor: "Реклама и спонсорство",
+        sp_title: "Рекламное место для Google AdSense и спонсоров",
+        sp_desc: "Только один аккуратный нижний баннер без всплывающих окон.",
+        sp_btn: "Связаться по рекламе",
+        sec_donate: "Поддержать разработчика",
+        donate_note: "Build MyVpn полностью бесплатен и открыт. Пожертвования добровольны.",
+        link_privacy: "Конфиденциальность",
+        ad_default_title: "Рекламное место · Google AdSense и спонсорские баннеры",
+        ad_default_sub: "Аккуратный нижний блок, не мешает работе",
+        copy: "Копировать", copied: "Скопировано",
+        theme_auto: "Авто", theme_light: "Светлая", theme_dark: "Тёмная"
+      },
+      "fa": {
+        nav_features: "ویژگی‌ها", nav_sponsor: "تبلیغات", nav_donate: "حمایت",
+        hero_pill: "اندروید · رایگان و متن‌باز GPLv3+ · VPS شخصی",
+        hero_title: "VPN اختصاصی شما در ۳ دقیقه — بدون نیاز به لینوکس",
+        hero_sub: "کافی است IP سرور و رمز SSH را وارد کنید؛ Build MyVpn به‌صورت خودکار BBR و VLESS + REALITY را نصب و متصل می‌کند.",
+        btn_download: "دانلود فایل APK اندروید", btn_source: "مشاهده سورس در GitHub",
+        sec_features: "چرا Build MyVpn؟",
+        f1_t: "طراحی بسیار ساده ۲ تب", f1_d: "فقط اتصال و سرورها. بدون حساب کاربری، اشتراک یا سرور اشتراکی.",
+        f2_t: "VLESS + REALITY و BBR خودکار", f2_d: "بدون نیاز به دامنه، مقاوم در برابر فیلترینگ و فعال‌سازی خودکار BBR.",
+        f3_t: "عدم ذخیره رمز عبور SSH", f3_d: "تأیید اثر انگشت TOFU و پاک‌سازی فوری رمز پس از نصب.",
+        f4_t: "مسیریابی هوشمند و ۱۷ زبان", f4_d: "قوانین ایران/چین/روسیه، پشتیبانی ۱۷ زبان، تأخیر واقعی و سرعت زنده.",
+        sec_sponsor: "اجاره تبلیغات و حمایت مالی",
+        sp_title: "جایگاه تبلیغاتی برای Google AdSense و حامیان",
+        sp_desc: "تنها یک بنر باریک ثابت در پایین صفحه، بدون پاپ‌آپ و مزاحمت.",
+        sp_btn: "تماس برای تبلیغات",
+        sec_donate: "حمایت از توسعه‌دهنده",
+        donate_note: "Build MyVpn کاملاً رایگان و متن‌باز است. تمام کمک‌ها داوطلبانه هستند.",
+        link_privacy: "حریم خصوصی",
+        ad_default_title: "جایگاه تبلیغات · ویژه Google AdSense و حامیان",
+        ad_default_sub: "بنر ساده پایین صفحه بدون ایجاد مزاحمت",
+        copy: "کپی", copied: "کپی شد",
+        theme_auto: "خودکار", theme_light: "روشن", theme_dark: "تیره"
+      },
+      "ar": {
+        nav_features: "المزايا", nav_sponsor: "الإعلانات", nav_donate: "الدعم",
+        hero_pill: "أندرويد · مجاني ومفتوح المصدر GPLv3+ · خادم VPS خاص",
+        hero_title: "VPN خاص بك في 3 دقائق — دون خبرة في لينكس",
+        hero_sub: "أدخل عنوان VPS وكلمة مرور SSH فقط، وسيقوم Build MyVpn بتفعيل BBR ونشر VLESS + REALITY تلقائيًا.",
+        btn_download: "تحميل Android APK", btn_source: "عرض الكود على GitHub",
+        sec_features: "لماذا Build MyVpn؟",
+        f1_t: "تصميم بسيط من تبويبين", f1_d: "الاتصال والخوادم فقط. بدون حسابات أو اشتراكات أو خوادم مشتركة.",
+        f2_t: "VLESS + REALITY وتفعيل BBR", f2_d: "يعمل بدون نطاق، مقاوم للحجب، ويفعّل تسريع BBR تلقائيًا.",
+        f3_t: "عدم حفظ كلمات مرور SSH", f3_d: "التحقق من بصمة TOFU ومسح كلمة المرور فورًا بعد النشر.",
+        f4_t: "توجيه ذكي و17 لغة", f4_d: "قواعد توجيه متعددة، 17 لغة، وقياس حقيقي للسرعة والتأخير.",
+        sec_sponsor: "حجز الإعلانات والرعاية",
+        sp_title: "مساحة إعلانية مخصصة لـ Google AdSense والرعاة",
+        sp_desc: "شريط سفلي واحد فقط غير مزعج وبدون نوافذ منبثقة.",
+        sp_btn: "تواصل للإعلان",
+        sec_donate: "دعم المطور",
+        donate_note: "Build MyVpn مجاني ومفتوح المصدر بالكامل. التبرع اختياري.",
+        link_privacy: "سياسة الخصوصية",
+        ad_default_title: "مساحة إعلانية متاحة · Google AdSense والرعاة",
+        ad_default_sub: "شريط سفلي بسيط لا يؤثر على الاستخدام",
+        copy: "نسخ", copied: "تم النسخ",
+        theme_auto: "تلقائي", theme_light: "فاتح", theme_dark: "داكن"
+      },
+      "tr": {
+        nav_features: "Özellikler", nav_sponsor: "Reklam", nav_donate: "Destekle",
+        hero_pill: "Android · Ücretsiz Açık Kaynak GPLv3+ · Kendi VPS'iniz",
+        hero_title: "Linux Bilmeden 3 Dakikada Kendi VPN'iniz",
+        hero_sub: "VPS IP ve SSH şifrenizi girin; Build MyVpn otomatik olarak BBR ve VLESS + REALITY kurup tek dokunuşla bağlanır.",
+        btn_download: "Android APK İndir", btn_source: "GitHub Kaynak Kodu",
+        sec_features: "Neden Build MyVpn?",
+        f1_t: "Sade 2 Sekmeli Tasarım", f1_d: "Yalnızca Bağlan ve Sunucular. Hesap veya abonelik yok.",
+        f2_t: "VLESS + REALITY & Otomatik BBR", f2_d: "Alan adı gerektirmez, sansüre dayanıklı ve otomatik BBR hızlandırmalı.",
+        f3_t: "SSH Şifreleri Saklanmaz", f3_d: "TOFU parmak izi kontrolü sonrası şifre bellekten anında silinir.",
+        f4_t: "Akıllı Yönlendirme & 17 Dil", f4_d: "17 dil desteği, canlı hız ve gerçek gecikme ölçümü.",
+        sec_sponsor: "Reklam ve Sponsorluk",
+        sp_title: "Google AdSense ve Sponsorlar İçin Reklam Alanı",
+        sp_desc: "Kullanımı bozmayan yalnızca tek bir ince alt banner alanı ayrılmıştır.",
+        sp_btn: "Reklam İletişimi",
+        sec_donate: "Geliştiriciyi Destekle",
+        donate_note: "Build MyVpn ücretsiz ve açık kaynaklıdır. Tüm bağışlar gönüllüdür.",
+        link_privacy: "Gizlilik Politikası",
+        ad_default_title: "Reklam Alanı Müsait · Google AdSense & Sponsorlar",
+        ad_default_sub: "Kullanımı etkilemeyen sade alt sabit banner",
+        copy: "Kopyala", copied: "Kopyalandı",
+        theme_auto: "Oto", theme_light: "Açık", theme_dark: "Koyu"
+      },
+      "fr": {
+        nav_features: "Fonctionnalités", nav_sponsor: "Publicité", nav_donate: "Soutenir",
+        hero_pill: "Android · Open Source Gratuit GPLv3+ · VPS Personnel",
+        hero_title: "Votre VPN privé en 3 minutes — sans Linux",
+        hero_sub: "Saisissez l'IP et le mot de passe SSH de votre VPS : Build MyVpn active BBR et déploie VLESS + REALITY automatiquement.",
+        btn_download: "Télécharger l'APK Android", btn_source: "Voir sur GitHub",
+        sec_features: "Pourquoi Build MyVpn ?",
+        f1_t: "Interface minimaliste à 2 onglets", f1_d: "Connexion et Serveurs uniquement. Sans compte ni abonnement.",
+        f2_t: "VLESS + REALITY & BBR auto", f2_d: "Sans nom de domaine, résistant au blocage avec accélération BBR.",
+        f3_t: "Mots de passe SSH éphémères", f3_d: "Vérification TOFU et effacement immédiat de la mémoire après déploiement.",
+        f4_t: "Routage intelligent & 17 langues", f4_d: "17 langues, débit en temps réel et latence réelle du proxy.",
+        sec_sponsor: "Publicité & Sponsoring",
+        sp_title: "Emplacement publicitaire Google AdSense & Sponsors",
+        sp_desc: "Une seule bannière discrète en bas de page, sans pop-up ni gêne.",
+        sp_btn: "Nous contacter",
+        sec_donate: "Soutenir le développeur",
+        donate_note: "Build MyVpn est 100 % gratuit et open source. Les dons sont volontaires.",
+        link_privacy: "Confidentialité",
+        ad_default_title: "Espace publicitaire · Google AdSense & Sponsors",
+        ad_default_sub: "Bannière inférieure discrète, sans gêner la navigation",
+        copy: "Copier", copied: "Copié",
+        theme_auto: "Auto", theme_light: "Clair", theme_dark: "Sombre"
+      },
+      "de": {
+        nav_features: "Funktionen", nav_sponsor: "Werbung", nav_donate: "Spenden",
+        hero_pill: "Android · Kostenlos & Open Source GPLv3+ · Eigener VPS",
+        hero_title: "Ihr privates VPN in 3 Minuten — ganz ohne Linux",
+        hero_sub: "Geben Sie VPS-IP und SSH-Passwort ein: Build MyVpn aktiviert BBR und richtet VLESS + REALITY automatisch ein.",
+        btn_download: "Android APK herunterladen", btn_source: "Quellcode auf GitHub",
+        sec_features: "Warum Build MyVpn?",
+        f1_t: "Minimalistische 2 Tabs", f1_d: "Nur Verbinden und Server. Kein Konto, kein Abo, keine geteilten Knoten.",
+        f2_t: "VLESS + REALITY & Auto-BBR", f2_d: "Ohne Domain, zensurresistent und mit automatischer BBR-Beschleunigung.",
+        f3_t: "SSH-Passwörter nie gespeichert", f3_d: "TOFU-Fingerabdruckprüfung und sofortiges Löschen nach Einrichtung.",
+        f4_t: "Smart-Routing & 17 Sprachen", f4_d: "17 Sprachen, Live-Geschwindigkeit und echte Proxy-Latenz.",
+        sec_sponsor: "Werbung & Sponsoring",
+        sp_title: "Werbeplatz für Google AdSense & Sponsoren",
+        sp_desc: "Nur ein dezenter unterer Banner ohne Pop-ups oder Störungen.",
+        sp_btn: "Werbeanfrage senden",
+        sec_donate: "Entwickler unterstützen",
+        donate_note: "Build MyVpn ist kostenlos und Open Source. Spenden sind freiwillig.",
+        link_privacy: "Datenschutz",
+        ad_default_title: "Werbeplatz frei · Google AdSense & Sponsoren",
+        ad_default_sub: "Dezenter unterer Banner ohne Beeinträchtigung",
+        copy: "Kopieren", copied: "Kopiert",
+        theme_auto: "Auto", theme_light: "Hell", theme_dark: "Dunkel"
+      },
+      "es": {
+        nav_features: "Funciones", nav_sponsor: "Publicidad", nav_donate: "Donar",
+        hero_pill: "Android · Código Abierto Gratis GPLv3+ · VPS Propio",
+        hero_title: "Tu VPN privado en 3 minutos — sin saber Linux",
+        hero_sub: "Introduce la IP de tu VPS y contraseña SSH: Build MyVpn activa BBR y despliega VLESS + REALITY automáticamente.",
+        btn_download: "Descargar APK de Android", btn_source: "Ver código en GitHub",
+        sec_features: "¿Por qué Build MyVpn?",
+        f1_t: "Diseño minimalista de 2 pestañas", f1_d: "Solo Conectar y Servidores. Sin cuentas ni suscripciones.",
+        f2_t: "VLESS + REALITY y BBR automático", f2_d: "Sin dominio, resistente a bloqueos y con aceleración TCP BBR.",
+        f3_t: "Contraseñas SSH nunca guardadas", f3_d: "Verificación TOFU y borrado inmediato tras el despliegue.",
+        f4_t: "Rutas inteligentes y 17 idiomas", f4_d: "17 idiomas, velocidad en vivo y latencia real del proxy.",
+        sec_sponsor: "Publicidad y Patrocinio",
+        sp_title: "Espacio reservado para Google AdSense y Patrocinadores",
+        sp_desc: "Solo un banner inferior discreto, sin ventanas emergentes.",
+        sp_btn: "Consultar publicidad",
+        sec_donate: "Apoyar al desarrollador",
+        donate_note: "Build MyVpn es gratuito y de código abierto. Las donaciones son voluntarias.",
+        link_privacy: "Privacidad",
+        ad_default_title: "Espacio publicitario · Google AdSense y Patrocinadores",
+        ad_default_sub: "Banner inferior discreto sin interrumpir el uso",
+        copy: "Copiar", copied: "Copiado",
+        theme_auto: "Auto", theme_light: "Claro", theme_dark: "Oscuro"
+      },
+      "pt": {
+        nav_features: "Recursos", nav_sponsor: "Anuncie", nav_donate: "Apoiar",
+        hero_pill: "Android · Código Aberto Grátis GPLv3+ · VPS Próprio",
+        hero_title: "Seu VPN privado em 3 minutos — sem saber Linux",
+        hero_sub: "Digite o IP e a senha SSH do seu VPS: o Build MyVpn ativa BBR e instala VLESS + REALITY automaticamente.",
+        btn_download: "Baixar APK Android", btn_source: "Ver código no GitHub",
+        sec_features: "Por que Build MyVpn?",
+        f1_t: "Design minimalista de 2 abas", f1_d: "Apenas Conectar e Servidores. Sem conta, sem assinatura.",
+        f2_t: "VLESS + REALITY e BBR automático", f2_d: "Sem domínio, resistente a bloqueios e com aceleração BBR.",
+        f3_t: "Senhas SSH nunca salvas", f3_d: "Verificação TOFU e limpeza imediata da memória após instalar.",
+        f4_t: "Rotas inteligentes e 17 idiomas", f4_d: "17 idiomas, velocidade ao vivo e latência real do proxy.",
+        sec_sponsor: "Publicidade e Patrocínio",
+        sp_title: "Espaço reservado para Google AdSense e Patrocinadores",
+        sp_desc: "Apenas um banner discreto na parte inferior, sem pop-ups.",
+        sp_btn: "Contato comercial",
+        sec_donate: "Apoiar o desenvolvedor",
+        donate_note: "Build MyVpn é gratuito e de código aberto. Doações são voluntárias.",
+        link_privacy: "Privacidade",
+        ad_default_title: "Espaço publicitário · Google AdSense e Patrocinadores",
+        ad_default_sub: "Banner inferior discreto sem atrapalhar o uso",
+        copy: "Copiar", copied: "Copiado",
+        theme_auto: "Auto", theme_light: "Claro", theme_dark: "Escuro"
       }
     };
 
-    let lang = (navigator.language || "").toLowerCase().startsWith("zh") ? "zh" : "en";
+    const LANG_KEY = "build_myvpn_lang";
+    function detectInitialLang() {
+      const saved = localStorage.getItem(LANG_KEY);
+      if (saved && I18N[saved]) return saved;
+      const nav = (navigator.language || "en").toLowerCase();
+      if (nav.startsWith("zh-tw") || nav.startsWith("zh-hk") || nav.startsWith("zh-hant")) return "zh-TW";
+      if (nav.startsWith("zh")) return "zh-CN";
+      const prefix = nav.split("-")[0];
+      return I18N[prefix] ? prefix : "en";
+    }
+
+    let currentLang = detectInitialLang();
+    const langSelect = document.getElementById("langSelect");
+    LANG_OPTIONS.forEach(opt => {
+      const el = document.createElement("option");
+      el.value = opt.code;
+      el.textContent = opt.label;
+      langSelect.appendChild(el);
+    });
+    langSelect.value = currentLang;
+
+    function t(key) {
+      return (I18N[currentLang] && I18N[currentLang][key]) || I18N.en[key] || "";
+    }
+
+    function updateThemeButtonLabel() {
+      const btn = document.getElementById("themeToggle");
+      const icon = themeMode === "auto" ? "◐" : (themeMode === "light" ? "☀" : "☾");
+      const label = themeMode === "auto" ? t("theme_auto") : (themeMode === "light" ? t("theme_light") : t("theme_dark"));
+      btn.textContent = `${icon} ${label}`;
+    }
+
     function applyLang() {
+      document.documentElement.lang = currentLang;
+      document.documentElement.dir = RTL_LANGS.has(currentLang) ? "rtl" : "ltr";
       document.querySelectorAll("[data-i18n]").forEach(el => {
         const key = el.getAttribute("data-i18n");
-        if (I18N[lang][key]) el.textContent = I18N[lang][key];
+        const val = t(key);
+        if (val) el.textContent = val;
       });
+      document.querySelectorAll(".copy-btn").forEach(btn => {
+        btn.textContent = t("copy");
+      });
+      updateThemeButtonLabel();
     }
-    document.getElementById("langToggle").addEventListener("click", () => {
-      lang = lang === "zh" ? "en" : "zh";
+
+    langSelect.addEventListener("change", () => {
+      currentLang = langSelect.value;
+      localStorage.setItem(LANG_KEY, currentLang);
       applyLang();
     });
-    applyLang();
 
+    document.getElementById("themeToggle").addEventListener("click", () => {
+      themeMode = themeMode === "auto" ? "light" : (themeMode === "light" ? "dark" : "auto");
+      localStorage.setItem(THEME_KEY, themeMode);
+      applyTheme();
+    });
+
+    document.getElementById("closeAdBtn").addEventListener("click", () => {
+      document.getElementById("fixedAdBar").style.display = "none";
+      document.body.style.paddingBottom = "24px";
+    });
+
+    applyTheme();
+    applyLang();
+    // Re-check time every 60s when in auto theme mode (switches cleanly at 06:00 and 19:00)
+    setInterval(() => { if (themeMode === "auto") applyTheme(); }, 60000);
+
+    // Load dynamic sponsor & donation configuration
     fetch("./config/monetization.json")
       .then(r => r.json())
       .then(cfg => {
-        const vpsEl = document.getElementById("vps-list");
-        (cfg.recommended_vps || []).forEach(v => {
-          const card = document.createElement("div");
-          card.className = "card";
-          card.innerHTML = `
-            <h3>${v.name}</h3>
-            <div class="price-tag">${v.price}</div>
-            <p style="margin-bottom: 14px;">${v.highlights}</p>
-            <a class="btn btn-secondary" style="padding: 8px 14px; font-size: 0.9rem;" href="${v.url}" target="_blank" rel="noopener">查看详情 →</a>
-          `;
-          vpsEl.appendChild(card);
-        });
+        if (cfg.sponsor_contact) {
+          document.getElementById("sponsorContactBtn").href = "mailto:" + cfg.sponsor_contact;
+        }
+        const ad = cfg.web_bottom_ad;
+        if (ad && ad.enabled === false) {
+          document.getElementById("fixedAdBar").style.display = "none";
+          document.body.style.paddingBottom = "24px";
+        } else if (ad) {
+          if (ad.badge) document.getElementById("bottomAdBadge").textContent = ad.badge;
+          if (ad.url) document.getElementById("bottomAdLink").href = ad.url;
+          if (currentLang.startsWith("zh")) {
+            if (ad.title) document.getElementById("bottomAdTitle").textContent = ad.title;
+            if (ad.subtitle) document.getElementById("bottomAdSub").textContent = ad.subtitle;
+          }
+        }
 
         const d = cfg.donations || {};
-        if (d.note) document.getElementById("donate-note").textContent = d.note;
-
         const linksEl = document.getElementById("donate-links");
-        const linkDefs = [
+        [
           ["PayPal.Me", d.paypal_url],
           ["Ko-fi", d.kofi_url],
-          ["爱发电 (支付宝/微信)", d.afdian_url]
-        ];
-        linkDefs.forEach(([label, url]) => {
+          ["Afdian (WeChat / Alipay)", d.afdian_url]
+        ].forEach(([label, url]) => {
           if (!url) return;
           const a = document.createElement("a");
           a.className = "btn btn-secondary";
-          a.style.padding = "9px 16px";
+          a.style.padding = "8px 14px";
+          a.style.fontSize = "0.88rem";
           a.href = url;
           a.target = "_blank";
           a.rel = "noopener";
@@ -262,15 +795,17 @@
           if (!c.address) return;
           const row = document.createElement("div");
           row.className = "crypto-row";
-          row.innerHTML = `<div><strong>${c.network}:</strong> ${c.address}</div>`;
+          const info = document.createElement("div");
+          info.innerHTML = `<strong>${c.network}:</strong> ${c.address}`;
           const btn = document.createElement("button");
           btn.className = "copy-btn";
-          btn.textContent = "复制";
+          btn.textContent = t("copy");
           btn.onclick = () => {
             navigator.clipboard.writeText(c.address);
-            btn.textContent = "已复制";
-            setTimeout(() => (btn.textContent = "复制"), 1500);
+            btn.textContent = t("copied");
+            setTimeout(() => (btn.textContent = t("copy")), 1500);
           };
+          row.appendChild(info);
           row.appendChild(btn);
           cryptoEl.appendChild(row);
         });

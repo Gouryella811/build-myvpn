@@ -3,41 +3,30 @@
   "updated_at": "2026-11-22",
   "website_url": "https://build-myvpn.pages.dev",
   "privacy_url": "https://build-myvpn.pages.dev/privacy.html",
-  "vps_guide_url": "https://build-myvpn.pages.dev/#vps-guide",
+  "vps_guide_url": "https://build-myvpn.pages.dev/#sponsor",
+  "sponsor_contact": "ad@build-myvpn.pages.dev",
+  "web_bottom_ad": {
+    "enabled": true,
+    "badge": "AD",
+    "title": "广告位招租 · 预留 Google AdSense / 商业赞助横幅",
+    "subtitle": "极简固定底栏，不弹窗不干扰使用 · 点击联系赞助合作",
+    "url": "#sponsor"
+  },
   "connect_banner": {
     "enabled": true,
-    "badge": "推荐",
-    "title": "还没有高性价比 VPS？查看新手精选服务器",
-    "subtitle": "最低约 $10/年 · 支持支付宝/信用卡 · 一键自动部署",
-    "url": "https://build-myvpn.pages.dev/#vps-guide"
+    "badge": "AD",
+    "title": "广告位招租 · 预留商业赞助与广告横幅",
+    "subtitle": "极简不干扰使用 · 点击查看合作方式",
+    "url": "https://build-myvpn.pages.dev/#sponsor"
   },
   "add_vps_banner": {
     "enabled": true,
-    "badge": "VPS 推荐",
-    "title": "新手 3 分钟选购 VPS 指南（实测可用）",
-    "subtitle": "已按延迟与性价比筛选，购买后填 IP 和密码即可自动部署",
-    "url": "https://build-myvpn.pages.dev/#vps-guide"
+    "badge": "AD",
+    "title": "广告位招租 · 预留商业赞助与广告横幅",
+    "subtitle": "支持 Google 广告与直投赞助 · 点击查看详情",
+    "url": "https://build-myvpn.pages.dev/#sponsor"
   },
-  "recommended_vps": [
-    {
-      "name": "RackNerd",
-      "price": "约 $10.98 / 年起",
-      "highlights": "入门性价比极高 · 支持支付宝/PayPal · 洛杉矶/圣何塞机房",
-      "url": "https://build-myvpn.pages.dev/#vps-guide"
-    },
-    {
-      "name": "BandwagonHost (搬瓦工)",
-      "price": "约 $49.99 / 年起",
-      "highlights": "CN2 GIA 优质直连线路 · 支持支付宝 · 晚高峰稳定",
-      "url": "https://build-myvpn.pages.dev/#vps-guide"
-    },
-    {
-      "name": "Vultr",
-      "price": "约 $5 / 月起（按小时计费）",
-      "highlights": "全球 30+ 机房随时换 IP · 东京/新加坡/法兰克福",
-      "url": "https://build-myvpn.pages.dev/#vps-guide"
-    }
-  ],
+  "recommended_vps": [],
   "donations": {
     "note": "Build MyVpn 永久免费开源，所有捐赠完全自愿，不解锁任何付费功能。",
     "paypal_url": "",

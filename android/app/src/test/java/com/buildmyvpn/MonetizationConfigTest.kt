@@ -21,7 +21,6 @@ class MonetizationConfigTest {
         val parsed = json.decodeFromString(MonetizationConfig.serializer(), file!!.readText())
         assertTrue(parsed.connectBanner.enabled)
         assertTrue(parsed.addVpsBanner.enabled)
-        assertTrue(parsed.recommendedVps.isNotEmpty())
         assertEquals(1, parsed.schemaVersion)
     }
 }
