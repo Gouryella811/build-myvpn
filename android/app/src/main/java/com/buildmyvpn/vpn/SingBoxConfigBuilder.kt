@@ -30,6 +30,7 @@ data class LocalRuleFiles(
  * Key guarantees:
  * - Strict 1.12+ typed DNS servers + route actions ("sniff", "hijack-dns") + default_domain_resolver.
  * - Pure IPv4 Hysteria2 enforces tls.certificate_sha256 pinning (never sets insecure=true).
+ * - IPv4-first TUN + DNS strategy prevents 5-10s IPv6 hangs on IPv4-only VPSes (e.g. AWS Lightsail/EC2).
  * - Fail-Closed routing: if local rule files are missing/corrupt, routes traffic via proxy (never direct).
  */
 object SingBoxConfigBuilder {
@@ -50,7 +51,7 @@ object SingBoxConfigBuilder {
 
         val config = buildJsonObject {
             put("log", buildJsonObject {
-                put("level", "warn")
+                put("level", "info")
                 put("timestamp", true)
             })
             put("experimental", buildJsonObject {
@@ -64,12 +65,13 @@ object SingBoxConfigBuilder {
                 add(buildJsonObject {
                     put("type", "tun")
                     put("tag", "tun-in")
+                    put("mtu", 9000)
                     put("address", buildJsonArray {
                         add(JsonPrimitive("172.19.0.1/30"))
-                        add(JsonPrimitive("fdfe:dcba:9876::1/126"))
                     })
                     put("auto_route", true)
                     put("strict_route", true)
+                    put("stack", "system")
                 })
             })
             put("outbounds", buildJsonArray {
@@ -92,9 +94,9 @@ object SingBoxConfigBuilder {
             })
             add(buildJsonObject {
                 put("tag", "dns-remote")
-                put("type", "https")
+                put("type", "udp")
                 put("server", "1.1.1.1")
-                put("server_port", 443)
+                put("server_port", 53)
                 put("detour", "proxy")
             })
         })
@@ -107,7 +109,7 @@ object SingBoxConfigBuilder {
             })
         }
         put("final", "dns-remote")
-        put("strategy", "prefer_ipv4")
+        put("strategy", "ipv4_only")
         put("independent_cache", true)
     }
 

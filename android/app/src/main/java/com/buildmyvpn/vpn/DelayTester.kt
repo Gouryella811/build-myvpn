@@ -14,7 +14,7 @@ sealed interface DelayResult {
     data object Testing : DelayResult
     data class Success(val millis: Int) : DelayResult
     data object Timeout : DelayResult
-    data object Failed : DelayResult
+    data class Failed(val reason: String = "") : DelayResult
 }
 
 @Serializable
@@ -26,12 +26,12 @@ private data class ClashDelayResponse(val delay: Int)
  */
 class DelayTester(
     private val probeUrl: String = "https://www.gstatic.com/generate_204",
-    private val timeoutMs: Int = 5000
+    private val timeoutMs: Int = 6000
 ) {
     private val json = Json { ignoreUnknownKeys = true }
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(timeoutMs.toLong(), TimeUnit.MILLISECONDS)
-        .readTimeout((timeoutMs + 1000).toLong(), TimeUnit.MILLISECONDS)
+        .readTimeout((timeoutMs + 2000).toLong(), TimeUnit.MILLISECONDS)
         .build()
 
     suspend fun measureProxyDelay(clashApiSecret: String): DelayResult = withContext(Dispatchers.IO) {
@@ -45,14 +45,18 @@ class DelayTester(
 
         runCatching {
             httpClient.newCall(request).execute().use { resp ->
-                if (resp.code == 504) return@withContext DelayResult.Timeout
-                if (!resp.isSuccessful) return@withContext DelayResult.Failed
                 val body = resp.body?.string().orEmpty()
+                if (resp.code == 504) return@withContext DelayResult.Timeout
+                if (!resp.isSuccessful) {
+                    return@withContext DelayResult.Failed("HTTP ${resp.code}: ${body.take(120)}")
+                }
                 val parsed = json.decodeFromString(ClashDelayResponse.serializer(), body)
-                if (parsed.delay > 0) DelayResult.Success(parsed.delay) else DelayResult.Failed
+                if (parsed.delay > 0) DelayResult.Success(parsed.delay)
+                else DelayResult.Failed("delay=${parsed.delay}")
             }
         }.getOrElse { ex ->
-            if (ex is java.net.SocketTimeoutException) DelayResult.Timeout else DelayResult.Failed
+            if (ex is java.net.SocketTimeoutException) DelayResult.Timeout
+            else DelayResult.Failed("${ex.javaClass.simpleName}: ${ex.message}")
         }
     }
 }

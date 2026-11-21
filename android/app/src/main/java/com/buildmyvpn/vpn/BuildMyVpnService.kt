@@ -5,10 +5,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import android.net.VpnService
 import android.os.Build
 import android.util.Log
@@ -26,7 +22,7 @@ enum class VpnState { DISCONNECTED, CONNECTING, CONNECTED }
 
 /**
  * Android VpnService hosting `libbox` (sing-box 1.12+).
- * Handles foreground notification, network switch recovery, and automatic post-connect delay test.
+ * Network switch recovery is delegated natively to LibboxBridge's DefaultInterfaceMonitor.
  */
 class BuildMyVpnService : VpnService() {
 
@@ -41,6 +37,7 @@ class BuildMyVpnService : VpnService() {
 
         private const val CHANNEL_ID = "build_myvpn_status"
         private const val NOTIFICATION_ID = 1001
+        private const val MAX_LOG_LINES = 40
 
         private val _state = MutableStateFlow(VpnState.DISCONNECTED)
         val state: StateFlow<VpnState> = _state.asStateFlow()
@@ -50,19 +47,29 @@ class BuildMyVpnService : VpnService() {
 
         private val _lastError = MutableStateFlow<String?>(null)
         val lastError: StateFlow<String?> = _lastError.asStateFlow()
+
+        private val _recentLogs = MutableStateFlow<List<String>>(emptyList())
+        val recentLogs: StateFlow<List<String>> = _recentLogs.asStateFlow()
+
+        private fun appendLog(line: String) {
+            val current = _recentLogs.value
+            val updated = (current + line).takeLast(MAX_LOG_LINES)
+            _recentLogs.value = updated
+        }
     }
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var libboxBridge: LibboxBridge
     private val delayTester = DelayTester()
-    private var activeConfigJson: String? = null
-    private var activeServerLabel: String = ""
     private var activeClashSecret: String = ""
-    private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
     override fun onCreate() {
         super.onCreate()
-        libboxBridge = LibboxBridge(this, applicationContext)
+        libboxBridge = LibboxBridge(
+            vpnService = this,
+            appContext = applicationContext,
+            onLog = { appendLog(it) }
+        )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -83,10 +90,9 @@ class BuildMyVpnService : VpnService() {
 
     private fun startVpn(configJson: String, serverLabel: String, clashSecret: String) {
         _lastError.value = null
+        _recentLogs.value = emptyList()
         _state.value = VpnState.CONNECTING
         _delayResult.value = DelayResult.Idle
-        activeConfigJson = configJson
-        activeServerLabel = serverLabel
         activeClashSecret = clashSecret
 
         ensureNotificationChannel()
@@ -96,18 +102,20 @@ class BuildMyVpnService : VpnService() {
             runCatching {
                 libboxBridge.stop()
                 if (!libboxBridge.isAvailable()) {
-                    error("未找到 libbox.aar，请先编译并放入 android/app/libs/libbox.aar")
+                    error("未找到 libbox.aar，请使用 CI 编译的 APK")
                 }
+                appendLog("Starting Build MyVpn core for $serverLabel")
                 libboxBridge.start(configJson)
-                registerNetworkRecovery()
                 _state.value = VpnState.CONNECTED
 
-                // Automatically run one real proxy egress latency probe after connection establishes
-                delay(600)
+                // Wait briefly for Clash API & tunnel interface to settle, then run real proxy delay probe
+                delay(800)
                 runDelayProbeInternal()
             }.onFailure { ex ->
-                Log.e(TAG, "Failed to start VPN", ex)
-                _lastError.value = ex.message ?: "VPN 启动失败"
+                val causeMsg = ex.cause?.message ?: ex.message ?: "VPN 启动失败"
+                Log.e(TAG, "Failed to start VPN: $causeMsg", ex)
+                appendLog("ERROR: $causeMsg")
+                _lastError.value = causeMsg
                 stopVpn()
             }
         }
@@ -120,49 +128,13 @@ class BuildMyVpnService : VpnService() {
 
     private suspend fun runDelayProbeInternal() {
         _delayResult.value = DelayResult.Testing
-        _delayResult.value = delayTester.measureProxyDelay(activeClashSecret)
-    }
-
-    private fun registerNetworkRecovery() {
-        unregisterNetworkRecovery()
-        val cm = getSystemService(ConnectivityManager::class.java) ?: return
-        val req = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
-            .build()
-        val cb = object : ConnectivityManager.NetworkCallback() {
-            private var seenInitial = false
-            override fun onAvailable(network: Network) {
-                if (!seenInitial) {
-                    seenInitial = true
-                    return
-                }
-                // Recover QUIC / TCP sockets cleanly on Wi-Fi <-> Cellular handoff
-                val cfg = activeConfigJson ?: return
-                if (_state.value == VpnState.CONNECTED) {
-                    serviceScope.launch {
-                        runCatching {
-                            libboxBridge.stop()
-                            libboxBridge.start(cfg)
-                        }.onFailure { Log.w(TAG, "Network switch recovery failed", it) }
-                    }
-                }
-            }
-        }
-        networkCallback = cb
-        runCatching { cm.registerNetworkCallback(req, cb) }
-    }
-
-    private fun unregisterNetworkRecovery() {
-        val cm = getSystemService(ConnectivityManager::class.java)
-        networkCallback?.let { runCatching { cm?.unregisterNetworkCallback(it) } }
-        networkCallback = null
+        val res = delayTester.measureProxyDelay(activeClashSecret)
+        appendLog("Delay test result: $res")
+        _delayResult.value = res
     }
 
     private fun stopVpn() {
-        unregisterNetworkRecovery()
         libboxBridge.stop()
-        activeConfigJson = null
         activeClashSecret = ""
         _state.value = VpnState.DISCONNECTED
         _delayResult.value = DelayResult.Idle
@@ -176,7 +148,6 @@ class BuildMyVpnService : VpnService() {
     }
 
     override fun onDestroy() {
-        unregisterNetworkRecovery()
         libboxBridge.stop()
         serviceScope.cancel()
         super.onDestroy()

@@ -50,7 +50,7 @@ class SingBoxConfigBuilderTest {
         // Verify typed DNS servers
         val dnsServers = root["dns"]!!.jsonObject["servers"]!!.jsonArray
         assertEquals("local", dnsServers[0].jsonObject["type"]!!.jsonPrimitive.content)
-        assertEquals("https", dnsServers[1].jsonObject["type"]!!.jsonPrimitive.content)
+        assertEquals("udp", dnsServers[1].jsonObject["type"]!!.jsonPrimitive.content)
 
         // Verify route uses sniff + hijack-dns + fail-closed final=proxy (no rule_set since files missing)
         val route = root["route"]!!.jsonObject

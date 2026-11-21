@@ -50,6 +50,7 @@ data class MainUiState(
     val vpnState: VpnState = VpnState.DISCONNECTED,
     val delayResult: DelayResult = DelayResult.Idle,
     val vpnError: String? = null,
+    val recentLogs: List<String> = emptyList(),
     val deployState: DeployUiState = DeployUiState(),
     val pendingHostKey: PendingHostKeyPrompt? = null,
     val ruleUpdateMessage: String? = null,
@@ -74,8 +75,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val vpnFlow = combine(
         BuildMyVpnService.state,
         BuildMyVpnService.delayResult,
-        BuildMyVpnService.lastError
-    ) { vpnState, delayResult, vpnError -> Triple(vpnState, delayResult, vpnError) }
+        BuildMyVpnService.lastError,
+        BuildMyVpnService.recentLogs
+    ) { vpnState, delayResult, vpnError, logs -> VpnTuple(vpnState, delayResult, vpnError, logs) }
 
     private val opsFlow = combine(
         _deployState,
@@ -93,15 +95,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ) { persisted, vpn, ops ->
         MainUiState(
             persisted = persisted,
-            vpnState = vpn.first,
-            delayResult = vpn.second,
-            vpnError = vpn.third,
+            vpnState = vpn.vpnState,
+            delayResult = vpn.delayResult,
+            vpnError = vpn.vpnError,
+            recentLogs = vpn.logs,
             deployState = ops.deploy,
             pendingHostKey = ops.hostKey,
             ruleUpdateMessage = ops.ruleMsg,
             ruleUpdating = ops.ruleBusy
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MainUiState())
+
+    private data class VpnTuple(
+        val vpnState: VpnState,
+        val delayResult: DelayResult,
+        val vpnError: String?,
+        val logs: List<String>
+    )
 
     private data class OpsTuple(
         val deploy: DeployUiState,

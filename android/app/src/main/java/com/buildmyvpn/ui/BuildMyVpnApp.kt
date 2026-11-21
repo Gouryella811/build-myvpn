@@ -86,6 +86,7 @@ fun BuildMyVpnApp(
     onRequestConnect: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) }
     var showSettings by remember { mutableStateOf(false) }
     var showRuleDialog by remember { mutableStateOf(false) }
@@ -179,7 +180,11 @@ fun BuildMyVpnApp(
                         password = pass,
                         privateKeyPem = key,
                         enableHysteria2Dual = enableHy2,
-                        onSuccess = { showAddServerDialog = false }
+                        onSuccess = {
+                            showAddServerDialog = false
+                            selectedTab = 0
+                            Toast.makeText(context, "部署成功，已设为当前服务器，点击即可连接", Toast.LENGTH_LONG).show()
+                        }
                     )
                 },
                 onDismiss = {
@@ -236,6 +241,7 @@ fun BuildMyVpnApp(
                 rulesUpdatedAt = state.persisted.rulesUpdatedAt,
                 ruleUpdating = state.ruleUpdating,
                 ruleUpdateMessage = state.ruleUpdateMessage,
+                recentLogs = state.recentLogs,
                 onUpdateRules = { viewModel.updateRulesNow() },
                 onDismiss = { showSettings = false }
             )
@@ -298,7 +304,7 @@ private fun ConnectScreen(
                     DelayResult.Testing -> "..."
                     is DelayResult.Success -> "${d.millis} ms"
                     DelayResult.Timeout -> stringResource(R.string.delay_timeout)
-                    DelayResult.Failed -> stringResource(R.string.delay_failed)
+                    is DelayResult.Failed -> stringResource(R.string.delay_failed)
                 }
                 Text(
                     text = delayText,
@@ -788,14 +794,21 @@ private fun SettingsDialog(
     rulesUpdatedAt: String?,
     ruleUpdating: Boolean,
     ruleUpdateMessage: String?,
+    recentLogs: List<String>,
     onUpdateRules: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+    var showLogs by remember { mutableStateOf(false) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.settings)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 Text("分流规则更新", style = MaterialTheme.typography.titleSmall)
                 Text(
                     text = "本地缓存版本：${rulesUpdatedAt ?: "内置基础规则"}",
@@ -811,6 +824,24 @@ private fun SettingsDialog(
                 }
                 ruleUpdateMessage?.let {
                     Text(it, style = MaterialTheme.typography.bodySmall)
+                }
+                HorizontalDivider()
+                TextButton(onClick = { showLogs = !showLogs }) {
+                    Text(if (showLogs) "收起诊断日志" else "查看诊断日志（排障用）")
+                }
+                if (showLogs) {
+                    val logText = recentLogs.takeLast(20).joinToString("\n").ifBlank { "暂无运行日志" }
+                    Text(logText, style = MaterialTheme.typography.bodySmall)
+                    OutlinedButton(
+                        onClick = {
+                            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            cm.setPrimaryClip(ClipData.newPlainText("Build MyVpn Logs", logText))
+                            Toast.makeText(context, "已复制诊断日志", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("复制诊断日志")
+                    }
                 }
                 HorizontalDivider()
                 Text(stringResource(R.string.settings_privacy_note), style = MaterialTheme.typography.bodySmall)
