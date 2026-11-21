@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">Build MyVpn</string>
+    <string name="settings">Настройки</string>
+    <string name="tab_connect">Подключение</string>
+    <string name="tab_servers">Серверы</string>
+    <string name="status_disconnected">Отключено</string>
+    <string name="status_connecting">Подключение…</string>
+    <string name="status_connected">Подключено</string>
+    <string name="delay_timeout">Тайм-аут</string>
+    <string name="delay_failed">Ошибка</string>
+    <string name="refresh_delay">Обновить задержку</string>
+    <string name="current_server">Текущий сервер</string>
+    <string name="no_server_yet">VPS ещё не добавлен. Нажмите, чтобы добавить.</string>
+    <string name="mode_smart">Умный прокси</string>
+    <string name="mode_global">Глобальный прокси</string>
+    <string name="rule_general">🌍 Общие · Авто</string>
+    <string name="rule_cn">🇨🇳 Правила Китая</string>
+    <string name="rule_ir">🇮🇷 Правила Ирана</string>
+    <string name="rule_ru">🇷🇺 Правила России</string>
+    <string name="add_vps">Добавить VPS</string>
+    <string name="server_host_label">IPv4 или домен VPS</string>
+    <string name="invalid_host_error">Введите корректный IPv4 или домен</string>
+    <string name="protocol_reality_label">VLESS + REALITY (Рекомендуется · Стабильно)</string>
+    <string name="protocol_hy2_label">Hysteria2 (Быстрый режим · Риск блокировки)</string>
+    <string name="hy2_block_risk_warning">Внимание: Hysteria2 использует UDP и чаще подвергается ограничениям или блокировке порта/IP. Для стабильной работы рекомендуется VLESS + REALITY.</string>
+    <string name="deploy_start">Автоустановка</string>
+    <string name="cancel">Отмена</string>
+    <string name="ok">ОК</string>
+    <string name="settings_privacy_note">Пароли SSH не сохраняются на устройстве.</string>
+    <string name="settings_license_note">Открытый исходный код · GPLv3+ · Без рекламы.</string>
+</resources>

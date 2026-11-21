@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">Build MyVpn</string>
+    <string name="settings">تنظیمات</string>
+    <string name="tab_connect">اتصال</string>
+    <string name="tab_servers">سرورها</string>
+    <string name="status_disconnected">قطع شده</string>
+    <string name="status_connecting">در حال اتصال…</string>
+    <string name="status_connected">متصل شد</string>
+    <string name="delay_timeout">زمان تمام شد</string>
+    <string name="delay_failed">ناموفق</string>
+    <string name="refresh_delay">بررسی مجدد تأخیر</string>
+    <string name="current_server">سرور فعلی</string>
+    <string name="no_server_yet">هنوز سروری اضافه نشده است. برای افزودن لمس کنید.</string>
+    <string name="mode_smart">پروکسی هوشمند</string>
+    <string name="mode_global">پروکسی سراسری</string>
+    <string name="rule_general">🌍 عمومی · خودکار</string>
+    <string name="rule_cn">🇨🇳 قوانین چین</string>
+    <string name="rule_ir">🇮🇷 قوانین ایران</string>
+    <string name="rule_ru">🇷🇺 قوانین روسیه</string>
+    <string name="add_vps">افزودن VPS</string>
+    <string name="server_host_label">آدرس IPv4 یا دامنه VPS</string>
+    <string name="invalid_host_error">لطفاً یک آدرس IPv4 یا دامنه معتبر وارد کنید</string>
+    <string name="protocol_reality_label">VLESS + REALITY (پیشنهادی · پایدار)</string>
+    <string name="protocol_hy2_label">Hysteria2 (حالت سریع · ریسک مسدودیت بالا)</string>
+    <string name="hy2_block_risk_warning">هشدار: پروتکل Hysteria2 مبتنی بر UDP است و در شبکه‌های محدود احتمال محدودسازی یا مسدود شدن پورت و IP بسیار بیشتر است. برای استفاده روزمره VLESS + REALITY توصیه می‌شود.</string>
+    <string name="deploy_start">نصب خودکار</string>
+    <string name="cancel">لغو</string>
+    <string name="ok">تأیید</string>
+    <string name="settings_privacy_note">رمز عبور SSH روی دستگاه ذخیره نمی‌شود.</string>
+    <string name="settings_license_note">متن‌باز · GPLv3+ · بدون تبلیغات.</string>
+</resources>

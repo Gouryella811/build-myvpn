@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">Build MyVpn</string>
+    <string name="settings">设置</string>
+    <string name="tab_connect">连接</string>
+    <string name="tab_servers">服务器</string>
+    <string name="status_disconnected">未连接</string>
+    <string name="status_connecting">连接中…</string>
+    <string name="status_connected">已连接</string>
+    <string name="delay_timeout">超时</string>
+    <string name="delay_failed">测试失败</string>
+    <string name="refresh_delay">重新测试延迟</string>
+    <string name="current_server">当前服务器</string>
+    <string name="no_server_yet">尚未添加 VPS，点击前往添加</string>
+    <string name="mode_smart">智能代理</string>
+    <string name="mode_global">全局代理</string>
+    <string name="rule_general">🌍 通用规则 · 自动识别</string>
+    <string name="rule_cn">🇨🇳 中国规则</string>
+    <string name="rule_ir">🇮🇷 伊朗规则</string>
+    <string name="rule_ru">🇷🇺 俄罗斯规则</string>
+    <string name="add_vps">添加 VPS</string>
+    <string name="server_host_label">VPS IPv4 地址或域名</string>
+    <string name="invalid_host_error">请输入有效的 IPv4 地址或域名</string>
+    <string name="protocol_reality_label">VLESS + REALITY（推荐 · 稳定抗封）</string>
+    <string name="protocol_hy2_label">Hysteria2（极速模式 · 高封锁风险）</string>
+    <string name="hy2_block_risk_warning">风险提示：实测极速模式（Hysteria2 / UDP）在受限网络中更容易被限速、阻断，甚至增加服务器端口或 IP 被封风险。日常稳定使用强烈推荐默认 VLESS + REALITY。</string>
+    <string name="deploy_start">自动部署</string>
+    <string name="cancel">取消</string>
+    <string name="ok">确定</string>
+    <string name="settings_privacy_note">隐私承诺：SSH 密码默认用后即焚，不落盘保存。</string>
+    <string name="settings_license_note">免费开源 · GPLv3+ · 无内置广告。</string>
+</resources>

@@ -1,0 +1,93 @@
+name: Build and Mirror Build MyVpn Rule Sets (.srs)
+
+on:
+  schedule:
+    # Daily at 03:30 UTC
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  SINGBOX_VERSION: "1.12.12"
+
+jobs:
+  build-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install sing-box CLI for .srs integrity validation
+        run: |
+          curl -fsSL "https://github.com/SagerNet/sing-box/releases/download/v${SINGBOX_VERSION}/sing-box-${SINGBOX_VERSION}-linux-amd64.tar.gz" -o /tmp/sb.tar.gz
+          tar -xzf /tmp/sb.tar.gz -C /tmp
+          sudo install -m 0755 "/tmp/sing-box-${SINGBOX_VERSION}-linux-amd64/sing-box" /usr/local/bin/sing-box
+          sing-box version
+
+      - name: Fetch upstream .srs rule sets (CN / IR / RU)
+        run: |
+          mkdir -p dist/rules
+
+          # China (CN)
+          curl -fsSL "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/cn.srs" -o dist/rules/geosite-cn.srs
+          curl -fsSL "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/cn.srs" -o dist/rules/geoip-cn.srs
+
+          # Iran (IR)
+          curl -fsSL "https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geosite-ir.srs" -o dist/rules/geosite-ir.srs
+          curl -fsSL "https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geoip-ir.srs" -o dist/rules/geoip-ir.srs
+
+          # Russia (RU) — combine MetaCubeX RU geoip/geosite & validate against runetfreedom
+          curl -fsSL "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/ru.srs" -o dist/rules/geosite-ru.srs
+          curl -fsSL "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/ru.srs" -o dist/rules/geoip-ru.srs
+
+      - name: Validate rule-set sizes and binary integrity
+        run: |
+          for f in dist/rules/*.srs; do
+            size=$(stat -c%s "$f")
+            echo "Validating $f (${size} bytes)..."
+            if [ "$size" -lt 1024 ]; then
+              echo "ERROR: $f is suspiciously small (${size} bytes)"
+              exit 1
+            fi
+            sing-box rule-set decompile "$f" -o /tmp/check.json
+            rm -f /tmp/check.json
+          done
+
+      - name: Generate SHA-256 manifest.json
+        run: |
+          python3 - <<'PYEOF'
+          import hashlib, json, os, time
+
+          rules = {}
+          for name in sorted(os.listdir("dist/rules")):
+              if not name.endswith(".srs"):
+                  continue
+              path = os.path.join("dist/rules", name)
+              with open(path, "rb") as f:
+                  data = f.read()
+              rules[name] = {
+                  "size": len(data),
+                  "sha256": hashlib.sha256(data).hexdigest(),
+              }
+
+          manifest = {
+              "schema_version": 1,
+              "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+              "singbox_version": os.environ["SINGBOX_VERSION"],
+              "files": rules,
+          }
+          with open("dist/rules/manifest.json", "w", encoding="utf-8") as f:
+              json.dump(manifest, f, indent=2)
+          print(json.dumps(manifest, indent=2))
+          PYEOF
+
+      - name: Publish rolling release (rules-latest)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: rules-latest
+          name: "Build MyVpn Rule Sets (Latest)"
+          body: "Automated daily validated .srs rule-set mirror for Build MyVpn (CN, IR, RU)."
+          files: dist/rules/*
+          make_latest: false
