@@ -140,7 +140,8 @@ is_ipv4() {
   local ip="$1"
   if [[ "$ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
     local IFS='.'
-    local -a octets=($ip)
+    local -a octets
+    read -r -a octets <<<"$ip"
     for o in "${octets[@]}"; do
       if (( o < 0 || o > 255 )); then
         return 1
