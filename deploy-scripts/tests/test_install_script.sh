@@ -209,6 +209,71 @@ validate_json_lines "$OUT8"
 assert_eq "BBR sysctl file removed on uninstall" "false" "$( [[ -f "${C2}/root/etc/sysctl.d/99-build-myvpn-bbr.conf" ]] && echo true || echo false )"
 assert_eq "Config dir removed on uninstall" "false" "$( [[ -d "${C2}/root/etc/build-myvpn" ]] && echo true || echo false )"
 
+echo "=== Test 9: Multi-device re-deploy preserves existing REALITY & Hysteria2 credentials ==="
+C9="${TMP_BASE}/c9"
+setup_mock_env "$C9" "ubuntu" "24.04" "bbr" "cubic bbr"
+# Override mock sing-box so every generate call yields unique values
+cat > "${C9}/root/usr/local/bin/sing-box" <<'EOF'
+#!/usr/bin/env bash
+case "${1:-}" in
+  version) echo "sing-box version 1.12.12" ;;
+  generate)
+    case "${2:-}" in
+      uuid) python3 -c 'import uuid; print(uuid.uuid4())' ;;
+      reality-keypair)
+        R=$(python3 -c 'import secrets; print(secrets.token_hex(8))')
+        echo "PrivateKey: priv_${R}"
+        echo "PublicKey: pub_${R}" ;;
+      rand)
+        python3 -c 'import secrets, sys; print(secrets.token_hex(int(sys.argv[1])))' "${4:-8}" ;;
+    esac ;;
+  check) python3 -m json.tool "${3}" >/dev/null ;;
+esac
+EOF
+chmod +x "${C9}/root/usr/local/bin/sing-box"
+
+OUT9_DEV1="$(PATH="${C9}/bin:${PATH}" \
+  BUILD_MYVPN_ROOT_PREFIX="${C9}/root" \
+  BUILD_MYVPN_OS_RELEASE="${C9}/os-release" \
+  BUILD_MYVPN_PROC_TCP_CC="${C9}/proc/tcp_cc" \
+  BUILD_MYVPN_PROC_TCP_AVAIL="${C9}/proc/tcp_avail" \
+  BUILD_MYVPN_UNAME_M="x86_64" \
+  BUILD_MYVPN_UNAME_R="6.8.0-45-generic" \
+  BUILD_MYVPN_VIRT="kvm" \
+  BUILD_MYVPN_FIXED_SNI="www.apple.com" \
+  bash "$TARGET_SCRIPT" --host 203.0.113.99 --protocol dual)"
+validate_json_lines "$OUT9_DEV1"
+
+OUT9_DEV2="$(PATH="${C9}/bin:${PATH}" \
+  BUILD_MYVPN_ROOT_PREFIX="${C9}/root" \
+  BUILD_MYVPN_OS_RELEASE="${C9}/os-release" \
+  BUILD_MYVPN_PROC_TCP_CC="${C9}/proc/tcp_cc" \
+  BUILD_MYVPN_PROC_TCP_AVAIL="${C9}/proc/tcp_avail" \
+  BUILD_MYVPN_UNAME_M="x86_64" \
+  BUILD_MYVPN_UNAME_R="6.8.0-45-generic" \
+  BUILD_MYVPN_VIRT="kvm" \
+  BUILD_MYVPN_FIXED_SNI="www.microsoft.com" \
+  bash "$TARGET_SCRIPT" --host 203.0.113.99 --protocol reality)"
+validate_json_lines "$OUT9_DEV2"
+
+D1_JSON="$(printf '%s\n' "$OUT9_DEV1" | tail -n1)"
+D2_JSON="$(printf '%s\n' "$OUT9_DEV2" | tail -n1)"
+D1_UUID="$(printf '%s\n' "$D1_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["node"]["reality"]["uuid"])')"
+D2_UUID="$(printf '%s\n' "$D2_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["node"]["reality"]["uuid"])')"
+D1_PUB="$(printf '%s\n' "$D1_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["node"]["reality"]["public_key"])')"
+D2_PUB="$(printf '%s\n' "$D2_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["node"]["reality"]["public_key"])')"
+D1_SNI="$(printf '%s\n' "$D1_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["node"]["reality"]["sni"])')"
+D2_SNI="$(printf '%s\n' "$D2_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["node"]["reality"]["sni"])')"
+D1_HY2="$(printf '%s\n' "$D1_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["node"]["hysteria2"]["password"])')"
+D2_HY2="$(printf '%s\n' "$D2_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["node"]["hysteria2"]["password"])')"
+D2_PROTO="$(printf '%s\n' "$D2_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["node"]["protocol"])')"
+
+assert_eq "Multi-device preserves UUID" "$D1_UUID" "$D2_UUID"
+assert_eq "Multi-device preserves REALITY public_key" "$D1_PUB" "$D2_PUB"
+assert_eq "Multi-device preserves SNI" "$D1_SNI" "$D2_SNI"
+assert_eq "Multi-device preserves Hysteria2 password" "$D1_HY2" "$D2_HY2"
+assert_eq "Multi-device does not downgrade existing dual VPS" "dual" "$D2_PROTO"
+
 echo ""
 echo "Summary: ${PASS_COUNT} passed, ${FAIL_COUNT} failed"
 (( FAIL_COUNT == 0 ))

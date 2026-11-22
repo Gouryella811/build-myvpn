@@ -64,11 +64,27 @@ class ServerRepository private constructor(private val context: Context) {
 
     suspend fun upsertServer(profile: ServerProfile, selectImmediately: Boolean = true) {
         update { current ->
-            val updatedList = current.servers.filterNot { it.id == profile.id } + profile
+            val existing = current.servers.firstOrNull {
+                it.id == profile.id || it.host.equals(profile.host, ignoreCase = true)
+            }
+            val merged = if (existing != null && existing.id != profile.id) {
+                profile.copy(
+                    id = existing.id,
+                    usedRxBytes = existing.usedRxBytes,
+                    usedTxBytes = existing.usedTxBytes,
+                    countryCode = profile.countryCode ?: existing.countryCode,
+                    regionLabel = profile.regionLabel ?: existing.regionLabel
+                )
+            } else {
+                profile
+            }
+            val updatedList = current.servers.filterNot {
+                it.id == merged.id || it.host.equals(merged.host, ignoreCase = true)
+            } + merged
             current.copy(
                 servers = updatedList,
                 selectedServerId = if (selectImmediately || current.selectedServerId == null) {
-                    profile.id
+                    merged.id
                 } else {
                     current.selectedServerId
                 }

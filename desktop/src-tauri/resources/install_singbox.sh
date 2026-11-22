@@ -13,6 +13,7 @@ PORT="443"
 HOST=""
 ACTION="install"           # install | disable-hy2 | uninstall
 DRY_RUN="false"
+REKEY="false"              # Preserve existing credentials across devices unless --rekey is passed
 
 # Paths (overridable via environment variables for isolated unit testing)
 ROOT_PREFIX="${BUILD_MYVPN_ROOT_PREFIX:-}"
@@ -93,6 +94,7 @@ Usage: install_singbox.sh [OPTIONS]
   --port <1-65535>          Listen port (default: 443)
   --singbox-version <ver>   sing-box version to install (default: 1.12.12)
   --disable-hy2             Disable Hysteria2 UDP listener while keeping VLESS+REALITY
+  --rekey                   Force regenerate UUID/REALITY/Hysteria2 keys (invalidates old devices)
   --uninstall               Remove sing-box service, config, and BBR/UDP sysctl files
   --dry-run                 Run checks and show planned actions without modifying system
   -h, --help                Show help
@@ -112,6 +114,8 @@ parse_args() {
         SINGBOX_VERSION="${2:-}"; shift 2 ;;
       --disable-hy2)
         ACTION="disable-hy2"; shift ;;
+      --rekey)
+        REKEY="true"; shift ;;
       --uninstall)
         ACTION="uninstall"; shift ;;
       --dry-run)
@@ -565,6 +569,21 @@ verify_domain_dns_resolves() {
   fi
 }
 
+# Extract a JSON string value by key from a pre-read string without requiring python3 or jq
+extract_json_str() {
+  local content="$1"
+  local key="$2"
+  printf '%s\n' "$content" | grep -m1 -E "\"${key}\"[[:space:]]*:[[:space:]]*\"" 2>/dev/null \
+    | sed -E "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\"([^\"]*)\".*/\1/" || true
+}
+
+extract_json_num() {
+  local content="$1"
+  local key="$2"
+  printf '%s\n' "$content" | grep -m1 -E "\"${key}\"[[:space:]]*:[[:space:]]*[0-9]+" 2>/dev/null \
+    | sed -E "s/.*\"${key}\"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/" || true
+}
+
 step_generate_config() {
   emit_event "generate_config" "running" "OK" "Generating sing-box configuration for protocol=${PROTOCOL}"
 
@@ -578,16 +597,44 @@ step_generate_config() {
 
   local uuid="" priv_key="" pub_key="" short_id="" sni=""
   local hy2_pass="" hy2_tls_mode="" hy2_cert_sha256=""
+  local existing_proto="" existing_port="" existing_host=""
+  local reused_reality="false" reused_hy2="false"
   local inbounds_json=""
 
+  # Multi-device idempotency: preserve existing credentials from META_FILE unless --rekey is passed
+  if [[ "$REKEY" != "true" ]] && run_root test -f "$META_FILE"; then
+    local meta_content
+    meta_content="$(run_root cat "$META_FILE" 2>/dev/null || true)"
+    existing_proto="$(extract_json_str "$meta_content" "protocol")"
+    existing_port="$(extract_json_num "$meta_content" "port")"
+    existing_host="$(extract_json_str "$meta_content" "host")"
+    uuid="$(extract_json_str "$meta_content" "uuid")"
+    priv_key="$(extract_json_str "$meta_content" "private_key")"
+    pub_key="$(extract_json_str "$meta_content" "public_key")"
+    short_id="$(extract_json_str "$meta_content" "short_id")"
+    sni="$(extract_json_str "$meta_content" "sni")"
+    hy2_pass="$(extract_json_str "$meta_content" "password")"
+    hy2_tls_mode="$(extract_json_str "$meta_content" "tls_mode")"
+    hy2_cert_sha256="$(extract_json_str "$meta_content" "certificate_sha256")"
+    # Never downgrade an existing dual-protocol VPS back to single-protocol when another device joins
+    if [[ "$existing_proto" == "dual" && "$PROTOCOL" == "reality" ]]; then
+      PROTOCOL="dual"
+    fi
+  fi
+
   if [[ "$PROTOCOL" == "reality" || "$PROTOCOL" == "dual" ]]; then
-    uuid="$("$BIN_PATH" generate uuid)"
-    local kp
-    kp="$("$BIN_PATH" generate reality-keypair)"
-    priv_key="$(awk '/PrivateKey:/ {print $2}' <<<"$kp")"
-    pub_key="$(awk '/PublicKey:/ {print $2}' <<<"$kp")"
-    short_id="$("$BIN_PATH" generate rand --hex 8)"
-    sni="$(select_best_sni)"
+    if [[ -n "$uuid" && -n "$priv_key" && -n "$pub_key" && -n "$short_id" && -n "$sni" ]]; then
+      reused_reality="true"
+      emit_event "generate_config" "running" "OK" "Reusing existing VLESS+REALITY credentials for multi-device sync"
+    else
+      uuid="$("$BIN_PATH" generate uuid)"
+      local kp
+      kp="$("$BIN_PATH" generate reality-keypair)"
+      priv_key="$(awk '/PrivateKey:/ {print $2}' <<<"$kp")"
+      pub_key="$(awk '/PublicKey:/ {print $2}' <<<"$kp")"
+      short_id="$("$BIN_PATH" generate rand --hex 8)"
+      sni="$(select_best_sni)"
+    fi
 
     inbounds_json="$(cat <<EOF
     {
@@ -620,11 +667,19 @@ EOF
   fi
 
   if [[ "$PROTOCOL" == "hy2" || "$PROTOCOL" == "dual" ]]; then
-    hy2_pass="$("$BIN_PATH" generate rand --hex 16)"
+    if [[ -z "$hy2_pass" ]]; then
+      hy2_pass="$("$BIN_PATH" generate rand --hex 16)"
+    else
+      reused_hy2="true"
+    fi
     local hy2_tls_block=""
     if is_ipv4 "$HOST"; then
       hy2_tls_mode="self_signed_pinned"
-      hy2_cert_sha256="$(generate_hy2_self_signed_cert "$HOST")"
+      if [[ "$reused_hy2" == "true" && -n "$hy2_cert_sha256" ]] && run_root test -f "${CERT_DIR}/hy2.crt" && run_root test -f "${CERT_DIR}/hy2.key"; then
+        emit_event "generate_config" "running" "OK" "Reusing existing Hysteria2 certificate for multi-device sync"
+      else
+        hy2_cert_sha256="$(generate_hy2_self_signed_cert "$HOST")"
+      fi
       hy2_tls_block="$(cat <<EOF
       "tls": {
         "enabled": true,
@@ -675,7 +730,20 @@ ${hy2_inbound}"
     fi
   fi
 
-  run_root tee "$CONFIG_FILE" >/dev/null <<EOF
+  # Zero-downtime fast path: if config/protocol/port/host are unchanged and service is already active, skip restart
+  local need_restart="true"
+  if [[ "$REKEY" != "true" && "$existing_proto" == "$PROTOCOL" && "$existing_port" == "$PORT" && "$existing_host" == "$HOST" ]] && run_root test -f "$CONFIG_FILE"; then
+    if [[ ( "$PROTOCOL" == "reality" && "$reused_reality" == "true" ) || ( "$PROTOCOL" == "dual" && "$reused_reality" == "true" && "$reused_hy2" == "true" ) || ( "$PROTOCOL" == "hy2" && "$reused_hy2" == "true" ) ]]; then
+      if run_root "$BIN_PATH" check -c "$CONFIG_FILE" >/dev/null 2>&1; then
+        if command -v systemctl >/dev/null 2>&1 && [[ -z "$ROOT_PREFIX" ]] && run_root systemctl is-active --quiet build-myvpn-singbox; then
+          need_restart="false"
+        fi
+      fi
+    fi
+  fi
+
+  if [[ "$need_restart" == "true" ]]; then
+    run_root tee "$CONFIG_FILE" >/dev/null <<EOF
 {
   "log": {
     "level": "warn",
@@ -692,14 +760,14 @@ ${inbounds_json}
   ]
 }
 EOF
-  run_root chmod 600 "$CONFIG_FILE"
+    run_root chmod 600 "$CONFIG_FILE"
 
-  # Validate sing-box configuration before starting service
-  "$BIN_PATH" check -c "$CONFIG_FILE" >/dev/null 2>&1 \
-    || fail_with "generate_config" "ERR_INVALID_CONFIG" "Generated sing-box config failed validation"
+    # Validate sing-box configuration before starting service
+    "$BIN_PATH" check -c "$CONFIG_FILE" >/dev/null 2>&1 \
+      || fail_with "generate_config" "ERR_INVALID_CONFIG" "Generated sing-box config failed validation"
 
-  # Save metadata so --disable-hy2 can safely strip Hysteria2 later without regenerating REALITY keys
-  run_root tee "$META_FILE" >/dev/null <<EOF
+    # Save metadata so multi-device sync & --disable-hy2 preserve existing keys
+    run_root tee "$META_FILE" >/dev/null <<EOF
 {
   "script_version": "${SCRIPT_VERSION}",
   "singbox_version": "${SINGBOX_VERSION}",
@@ -721,18 +789,19 @@ EOF
   }
 }
 EOF
-  run_root chmod 600 "$META_FILE"
+    run_root chmod 600 "$META_FILE"
 
-  if command -v systemctl >/dev/null 2>&1 && [[ -z "$ROOT_PREFIX" ]]; then
-    run_root systemctl enable build-myvpn-singbox >/dev/null 2>&1 || true
-    run_root systemctl restart build-myvpn-singbox \
-      || fail_with "generate_config" "ERR_SERVICE_START" "Failed to start build-myvpn-singbox service"
-    sleep 1
-    run_root systemctl is-active --quiet build-myvpn-singbox \
-      || fail_with "generate_config" "ERR_SERVICE_INACTIVE" "build-myvpn-singbox service is not active after start"
+    if command -v systemctl >/dev/null 2>&1 && [[ -z "$ROOT_PREFIX" ]]; then
+      run_root systemctl enable build-myvpn-singbox >/dev/null 2>&1 || true
+      run_root systemctl restart build-myvpn-singbox \
+        || fail_with "generate_config" "ERR_SERVICE_START" "Failed to start build-myvpn-singbox service"
+      sleep 1
+      run_root systemctl is-active --quiet build-myvpn-singbox \
+        || fail_with "generate_config" "ERR_SERVICE_INACTIVE" "build-myvpn-singbox service is not active after start"
+    fi
   fi
 
-  emit_event "generate_config" "ok" "OK" "Service configured and started"
+  emit_event "generate_config" "ok" "OK" "Service configured and active"
 
   # Emit final node payload for Android client storage (no private key included)
   local node_json

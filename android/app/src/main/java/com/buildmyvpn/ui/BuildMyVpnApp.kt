@@ -7,10 +7,14 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,53 +22,43 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -76,19 +70,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.os.LocaleListCompat
 import com.buildmyvpn.R
 import com.buildmyvpn.data.BannerSlot
 import com.buildmyvpn.data.DonationConfig
-import com.buildmyvpn.data.MonetizationConfig
-import com.buildmyvpn.data.RecommendedVpsItem
 import com.buildmyvpn.data.model.ActiveTransport
 import com.buildmyvpn.data.model.DeployedProtocolMode
 import com.buildmyvpn.data.model.ProxyMode
@@ -100,184 +97,187 @@ import com.buildmyvpn.vpn.FormatUtils
 import com.buildmyvpn.vpn.OnlineStatus
 import com.buildmyvpn.vpn.VpnState
 
-private data class LanguageOption(
-    val tag: String,       // "" = Follow System
-    val nativeName: String,
-    val recommended: Boolean = false
+private data class LangItem(val tag: String, val name: String, val rec: Boolean = false)
+
+private val LANGUAGES = listOf(
+    LangItem("", "System Default"),
+    LangItem("en", "English", rec = true),
+    LangItem("zh-CN", "简体中文", rec = true),
+    LangItem("zh-TW", "繁體中文"),
+    LangItem("ru", "Русский"),
+    LangItem("fa", "فارسی"),
+    LangItem("ar", "العربية"),
+    LangItem("es", "Español"),
+    LangItem("fr", "Français"),
+    LangItem("de", "Deutsch"),
+    LangItem("ja", "日本語"),
+    LangItem("ko", "한국어"),
+    LangItem("pt", "Português"),
+    LangItem("tr", "Türkçe"),
+    LangItem("vi", "Tiếng Việt"),
+    LangItem("id", "Bahasa Indonesia"),
+    LangItem("th", "ไทย"),
+    LangItem("hi", "हिन्दी")
 )
 
-// English & Simplified Chinese pinned first as recommended languages, followed by 15 major languages
-private val SUPPORTED_LANGUAGES = listOf(
-    LanguageOption("", "System Default"),
-    LanguageOption("en", "English", recommended = true),
-    LanguageOption("zh-CN", "简体中文", recommended = true),
-    LanguageOption("zh-TW", "繁體中文"),
-    LanguageOption("ja", "日本語"),
-    LanguageOption("ko", "한국어"),
-    LanguageOption("th", "ไทย"),
-    LanguageOption("vi", "Tiếng Việt"),
-    LanguageOption("id", "Bahasa Indonesia"),
-    LanguageOption("hi", "हिन्दी"),
-    LanguageOption("ru", "Русский"),
-    LanguageOption("fa", "فارسی"),
-    LanguageOption("ar", "العربية"),
-    LanguageOption("tr", "Türkçe"),
-    LanguageOption("fr", "Français"),
-    LanguageOption("de", "Deutsch"),
-    LanguageOption("es", "Español"),
-    LanguageOption("pt", "Português")
-)
-
-private fun openExternalUrl(context: Context, url: String) {
+private fun openUrl(ctx: Context, url: String) {
     if (url.isBlank()) return
-    runCatching {
-        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-    }.onFailure {
-        Toast.makeText(context, url, Toast.LENGTH_SHORT).show()
-    }
+    runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
 }
 
-private fun copyToClipboard(context: Context, label: String, text: String, toastMsg: String) {
-    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+private fun copyText(ctx: Context, label: String, text: String, toast: String) {
+    val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     cm.setPrimaryClip(ClipData.newPlainText(label, text))
-    Toast.makeText(context, toastMsg, Toast.LENGTH_SHORT).show()
+    Toast.makeText(ctx, toast, Toast.LENGTH_SHORT).show()
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BuildMyVpnApp(
     viewModel: MainViewModel,
     onRequestConnect: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
-    var selectedTab by remember { mutableIntStateOf(0) }
-    var showSettings by remember { mutableStateOf(false) }
-    var showLanguageDialog by remember { mutableStateOf(false) }
-    var showDonateDialog by remember { mutableStateOf(false) }
-    var showVpsRecommendDialog by remember { mutableStateOf(false) }
+    val ctx = LocalContext.current
+
+    var themeMode by remember { mutableStateOf(ThemeMode.load(ctx)) }
+    var tab by remember { mutableIntStateOf(0) }
     var showRuleDialog by remember { mutableStateOf(false) }
-    var showAddServerDialog by remember { mutableStateOf(false) }
+    var showAddDialog by remember { mutableStateOf(false) }
+    var showLangDialog by remember { mutableStateOf(false) }
+    var showDonateDialog by remember { mutableStateOf(false) }
     var editingServer by remember { mutableStateOf<ServerProfile?>(null) }
 
-    LaunchedEffect(selectedTab) {
-        if (selectedTab == 1) {
-            viewModel.refreshServersStatusAndRegions()
-        }
+    LaunchedEffect(tab) {
+        if (tab == 1) viewModel.refreshServersStatusAndRegions()
     }
 
-    MaterialTheme {
+    BuildMyVpnTheme(themeMode = themeMode) {
+        val c = LocalBmvColors.current
         Scaffold(
+            containerColor = c.bg,
             topBar = {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.app_name)) },
-                    actions = {
-                        TextButton(onClick = { showSettings = true }) {
-                            Icon(Icons.Default.Settings, contentDescription = null)
-                            Spacer(Modifier.size(4.dp))
-                            Text(stringResource(R.string.settings))
-                        }
+                UnifiedTopBar(
+                    vpnState = state.vpnState,
+                    themeMode = themeMode,
+                    onCycleTheme = {
+                        val next = themeMode.next()
+                        themeMode = next
+                        ThemeMode.save(ctx, next)
                     }
                 )
             },
             bottomBar = {
-                NavigationBar {
-                    NavigationBarItem(
-                        selected = selectedTab == 0,
-                        onClick = { selectedTab = 0 },
-                        icon = { Icon(Icons.Default.VpnKey, contentDescription = null) },
-                        label = { Text(stringResource(R.string.tab_connect)) }
+                Column(modifier = Modifier.background(c.chrome)) {
+                    SponsorBar(
+                        banner = state.monetization.connectBanner,
+                        onClick = { openUrl(ctx, state.monetization.connectBanner.url) }
                     )
-                    NavigationBarItem(
-                        selected = selectedTab == 1,
-                        onClick = { selectedTab = 1 },
-                        icon = { Icon(Icons.Default.Dns, contentDescription = null) },
-                        label = { Text(stringResource(R.string.tab_servers)) }
-                    )
+                    HorizontalDivider(color = c.border, thickness = 1.dp)
+                    NavigationBar(containerColor = c.chrome, tonalElevation = 0.dp) {
+                        val navColors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = c.accent,
+                            selectedTextColor = c.accent,
+                            indicatorColor = c.accentSoft,
+                            unselectedIconColor = c.muted,
+                            unselectedTextColor = c.muted
+                        )
+                        NavigationBarItem(
+                            selected = tab == 0,
+                            onClick = { tab = 0 },
+                            icon = { Icon(Icons.Default.PowerSettingsNew, null, Modifier.size(20.dp)) },
+                            label = { Text(stringResource(R.string.tab_connect), fontSize = 11.5.sp) },
+                            colors = navColors
+                        )
+                        NavigationBarItem(
+                            selected = tab == 1,
+                            onClick = { tab = 1 },
+                            icon = { Icon(Icons.Default.Dns, null, Modifier.size(20.dp)) },
+                            label = { Text(stringResource(R.string.tab_servers), fontSize = 11.5.sp) },
+                            colors = navColors
+                        )
+                        NavigationBarItem(
+                            selected = tab == 2,
+                            onClick = { tab = 2 },
+                            icon = { Icon(Icons.Default.Settings, null, Modifier.size(20.dp)) },
+                            label = { Text(stringResource(R.string.settings), fontSize = 11.5.sp) },
+                            colors = navColors
+                        )
+                    }
                 }
             }
-        ) { innerPadding ->
-            if (selectedTab == 0) {
-                ConnectScreen(
-                    modifier = Modifier.padding(innerPadding),
-                    state = state,
-                    onToggleConnect = {
-                        if (state.vpnState == VpnState.DISCONNECTED) {
-                            if (state.selectedServer == null) {
-                                selectedTab = 1
-                                showAddServerDialog = true
+        ) { padding ->
+            Box(Modifier.fillMaxSize().padding(padding)) {
+                when (tab) {
+                    0 -> ConnectView(
+                        state = state,
+                        onToggleConnect = {
+                            if (state.vpnState == VpnState.DISCONNECTED) {
+                                if (state.selectedServer == null) {
+                                    tab = 1
+                                    showAddDialog = true
+                                } else {
+                                    onRequestConnect()
+                                }
                             } else {
-                                onRequestConnect()
+                                viewModel.stopVpn()
                             }
-                        } else {
-                            viewModel.stopVpn()
+                        },
+                        onRefreshDelay = { viewModel.refreshDelay() },
+                        onSelectProxyMode = { viewModel.setProxyMode(it) },
+                        onOpenRulePicker = { showRuleDialog = true },
+                        onOpenServers = {
+                            tab = 1
+                            if (state.selectedServer == null) showAddDialog = true
                         }
-                    },
-                    onRefreshDelay = { viewModel.refreshDelay() },
-                    onSelectProxyMode = { viewModel.setProxyMode(it) },
-                    onOpenRulePicker = { showRuleDialog = true },
-                    onOpenServers = { selectedTab = 1 },
-                    onClickConnectBanner = {
-                        if (state.monetization.recommendedVps.isNotEmpty()) {
-                            showVpsRecommendDialog = true
-                        } else {
-                            openExternalUrl(context, state.monetization.connectBanner.url)
-                        }
-                    }
-                )
-            } else {
-                ServersScreen(
-                    modifier = Modifier.padding(innerPadding),
-                    servers = state.persisted.servers,
-                    selectedId = state.selectedServer?.id,
-                    onlineMap = state.serverOnlineMap,
-                    addVpsBanner = state.monetization.addVpsBanner,
-                    onSelect = { viewModel.selectServer(it) },
-                    onEdit = { editingServer = it },
-                    onRefreshStatus = { viewModel.refreshServersStatusAndRegions() },
-                    onClickVpsBanner = { showVpsRecommendDialog = true },
-                    onAddClick = { showAddServerDialog = true }
-                )
+                    )
+                    1 -> ServersView(
+                        servers = state.persisted.servers,
+                        selectedId = state.selectedServer?.id,
+                        onlineMap = state.serverOnlineMap,
+                        onSelect = { viewModel.selectServer(it) },
+                        onEdit = { editingServer = it },
+                        onRefresh = { viewModel.refreshServersStatusAndRegions() },
+                        onAdd = { showAddDialog = true }
+                    )
+                    2 -> SettingsView(
+                        state = state,
+                        themeMode = themeMode,
+                        onCycleTheme = {
+                            val next = themeMode.next()
+                            themeMode = next
+                            ThemeMode.save(ctx, next)
+                        },
+                        onOpenLanguage = { showLangDialog = true },
+                        onUpdateRules = { viewModel.updateRulesNow() },
+                        onOpenDonate = { showDonateDialog = true }
+                    )
+                }
             }
         }
 
         if (showRuleDialog) {
-            RulePickerDialog(
+            RuleDialog(
                 current = state.persisted.routingRule,
-                onSelect = {
-                    viewModel.setRoutingRule(it)
-                    showRuleDialog = false
-                },
+                onSelect = { viewModel.setRoutingRule(it); showRuleDialog = false },
                 onDismiss = { showRuleDialog = false }
             )
         }
 
-        if (showAddServerDialog) {
-            val deploySuccessToast = stringResource(R.string.deploy_success_toast)
+        if (showAddDialog) {
+            val toast = stringResource(R.string.deploy_success_toast)
             AddVpsDialog(
                 deployState = state.deployState,
-                addVpsBanner = state.monetization.addVpsBanner,
-                onOpenVpsGuide = { showVpsRecommendDialog = true },
-                onDeploy = { nick, host, port, user, pass, key, enableHy2 ->
-                    viewModel.deployNewServer(
-                        nickname = nick,
-                        host = host,
-                        sshPort = port,
-                        sshUsername = user,
-                        password = pass,
-                        privateKeyPem = key,
-                        enableHysteria2Dual = enableHy2,
-                        onSuccess = {
-                            showAddServerDialog = false
-                            selectedTab = 0
-                            Toast.makeText(context, deploySuccessToast, Toast.LENGTH_LONG).show()
-                        }
-                    )
+                onDeploy = { nick, host, port, user, pass, key, hy2 ->
+                    viewModel.deployNewServer(nick, host, port, user, pass, key, hy2) {
+                        showAddDialog = false
+                        tab = 0
+                        Toast.makeText(ctx, toast, Toast.LENGTH_LONG).show()
+                    }
                 },
                 onDismiss = {
                     if (!state.deployState.inProgress) {
                         viewModel.clearDeployError()
-                        showAddServerDialog = false
+                        showAddDialog = false
                     }
                 }
             )
@@ -286,11 +286,22 @@ fun BuildMyVpnApp(
         state.pendingHostKey?.let { prompt ->
             AlertDialog(
                 onDismissRequest = { viewModel.respondHostKeyPrompt(false) },
-                title = { Text(stringResource(R.string.ssh_fingerprint_title)) },
+                title = { Text(stringResource(R.string.ssh_fingerprint_title), fontWeight = FontWeight.Bold) },
                 text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(stringResource(R.string.ssh_fingerprint_body, prompt.host))
-                        Text(prompt.fingerprintSha256, style = MaterialTheme.typography.bodySmall)
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(stringResource(R.string.ssh_fingerprint_body, prompt.host), fontSize = 13.sp, color = c.muted)
+                        Surface(
+                            color = c.surface,
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, c.border)
+                        ) {
+                            Text(
+                                prompt.fingerprintSha256,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(10.dp)
+                            )
+                        }
                     }
                 },
                 confirmButton = {
@@ -306,281 +317,272 @@ fun BuildMyVpnApp(
             )
         }
 
-        editingServer?.let { server ->
-            val freshServer = state.persisted.servers.firstOrNull { it.id == server.id } ?: server
+        editingServer?.let { srv ->
+            val fresh = state.persisted.servers.firstOrNull { it.id == srv.id } ?: srv
             ServerDetailDialog(
-                server = freshServer,
-                onRename = { newName ->
-                    viewModel.renameServer(freshServer.id, newName)
-                    editingServer = null
+                server = fresh,
+                onRename = { viewModel.renameServer(fresh.id, it); editingServer = null },
+                onSwitchTransport = {
+                    viewModel.switchTransport(fresh, it)
+                    editingServer = fresh.copy(activeTransport = it)
                 },
-                onSwitchTransport = { transport ->
-                    viewModel.switchTransport(freshServer, transport)
-                    editingServer = freshServer.copy(activeTransport = transport)
-                },
-                onResetTraffic = {
-                    viewModel.resetServerTraffic(freshServer.id)
-                },
-                onDelete = {
-                    viewModel.deleteServer(freshServer.id)
-                    editingServer = null
-                },
+                onResetTraffic = { viewModel.resetServerTraffic(fresh.id) },
+                onDelete = { viewModel.deleteServer(fresh.id); editingServer = null },
                 onDismiss = { editingServer = null }
             )
         }
 
-        if (showVpsRecommendDialog) {
-            RecommendedVpsDialog(
-                items = state.monetization.recommendedVps,
-                guideUrl = state.monetization.vpsGuideUrl,
-                onDismiss = { showVpsRecommendDialog = false }
-            )
-        }
-
-        if (showSettings) {
-            SettingsDialog(
-                monetization = state.monetization,
-                rulesUpdatedAt = state.persisted.rulesUpdatedAt,
-                ruleUpdating = state.ruleUpdating,
-                ruleUpdateMessage = state.ruleUpdateMessage,
-                recentLogs = state.recentLogs,
-                onOpenLanguage = {
-                    showSettings = false
-                    showLanguageDialog = true
-                },
-                onUpdateRules = { viewModel.updateRulesNow() },
-                onOpenDonate = {
-                    showSettings = false
-                    showDonateDialog = true
-                },
-                onOpenVpsGuide = {
-                    showSettings = false
-                    showVpsRecommendDialog = true
-                },
-                onDismiss = { showSettings = false }
-            )
-        }
-
-        if (showLanguageDialog) {
-            LanguagePickerDialog(onDismiss = { showLanguageDialog = false })
-        }
-
-        if (showDonateDialog) {
-            SupportDeveloperDialog(
-                donations = state.monetization.donations,
-                onDismiss = { showDonateDialog = false }
-            )
-        }
+        if (showLangDialog) LanguageDialog(onDismiss = { showLangDialog = false })
+        if (showDonateDialog) DonateDialog(state.monetization.donations) { showDonateDialog = false }
     }
 }
 
 @Composable
-private fun SponsorBannerCard(
-    banner: BannerSlot,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+private fun UnifiedTopBar(
+    vpnState: VpnState,
+    themeMode: ThemeMode,
+    onCycleTheme: () -> Unit
 ) {
-    if (!banner.enabled || banner.title.isBlank()) return
-    Card(
-        onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f)
-        )
-    ) {
+    val c = LocalBmvColors.current
+    Column(modifier = Modifier.background(c.chrome).statusBarsPadding()) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                BmvBrandLogo(30.dp)
+                Row {
+                    Text("Build ", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = c.text)
+                    Text("MyVpn", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = c.accent)
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val dotColor = when (vpnState) {
+                    VpnState.CONNECTED -> c.green
+                    VpnState.CONNECTING -> c.amber
+                    VpnState.DISCONNECTED -> c.muted
+                }
+                val label = when (vpnState) {
+                    VpnState.CONNECTED -> stringResource(R.string.status_connected)
+                    VpnState.CONNECTING -> stringResource(R.string.status_connecting)
+                    VpnState.DISCONNECTED -> stringResource(R.string.status_disconnected)
+                }
+                Surface(
+                    shape = CircleShape,
+                    color = c.surface,
+                    border = BorderStroke(1.dp, c.border)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(Modifier.size(7.dp).clip(CircleShape).background(dotColor))
+                        Text(label, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = c.textSecondary)
+                    }
+                }
+                Surface(
+                    modifier = Modifier.size(32.dp).clip(RoundedCornerShape(8.dp)).clickable(onClick = onCycleTheme),
+                    shape = RoundedCornerShape(8.dp),
+                    color = c.elevated,
+                    border = BorderStroke(1.dp, c.border)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(themeMode.iconGlyph(), fontSize = 14.sp, color = c.text)
+                    }
+                }
+            }
+        }
+        HorizontalDivider(color = c.border, thickness = 1.dp)
+    }
+}
+
+@Composable
+private fun SponsorBar(banner: BannerSlot, onClick: () -> Unit) {
+    if (!banner.enabled || banner.title.isBlank()) return
+    val c = LocalBmvColors.current
+    Column(Modifier.fillMaxWidth().background(c.chrome)) {
+        HorizontalDivider(color = c.border, thickness = 1.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.primary,
-                        shape = MaterialTheme.shapes.extraSmall
-                    ) {
-                        Text(
-                            text = banner.badge.ifBlank { stringResource(R.string.recommended_badge) },
-                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-                    Text(
-                        text = banner.title,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+            BmvBadge(banner.badge.ifBlank { "AD" }, c.surface, c.muted, c.border)
+            Column(Modifier.weight(1f)) {
+                Text(banner.title, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (banner.subtitle.isNotBlank()) {
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = banner.subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Text(banner.subtitle, fontSize = 11.sp, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text("→", color = c.accent, fontWeight = FontWeight.Bold, fontSize = 14.sp)
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ConnectScreen(
-    modifier: Modifier,
+private fun ConnectView(
     state: MainUiState,
     onToggleConnect: () -> Unit,
     onRefreshDelay: () -> Unit,
     onSelectProxyMode: (ProxyMode) -> Unit,
     onOpenRulePicker: () -> Unit,
-    onOpenServers: () -> Unit,
-    onClickConnectBanner: () -> Unit
+    onOpenServers: () -> Unit
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
-        Spacer(Modifier.height(4.dp))
+    val c = LocalBmvColors.current
+    val srv = state.selectedServer
 
-        // Core Connect Area: Power Button -> Status -> Compact Latency + Live Speed Row
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            FilledTonalIconButton(
-                onClick = onToggleConnect,
-                shape = CircleShape,
-                modifier = Modifier.size(132.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        // Active Node Bar (identical to macOS / Windows top bar)
+        BmvCard(modifier = Modifier.fillMaxWidth(), onClick = onOpenServers) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(srv?.flagEmoji?.ifBlank { "🌐" } ?: "🌐", fontSize = 20.sp)
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = srv?.name ?: stringResource(R.string.no_server_yet),
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp,
+                            color = c.text,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        val sub = if (srv != null) {
+                            listOfNotNull(srv.regionLabel?.takeIf { it.isNotBlank() }, "${srv.host}:${srv.port}").joinToString(" · ")
+                        } else {
+                            stringResource(R.string.add_vps)
+                        }
+                        Text(sub, fontSize = 12.sp, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                val proto = when {
+                    srv == null -> "VPS"
+                    srv.activeTransport == ActiveTransport.HYSTERIA2 -> "Hysteria2"
+                    else -> "REALITY"
+                }
+                BmvBadge(proto, c.accentSoft, c.accent)
+            }
+        }
+
+        // Center Gradient Power Stage (identical to macOS / Windows)
+        Column(
+            modifier = Modifier.padding(vertical = 14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            val gradient = when (state.vpnState) {
+                VpnState.CONNECTED -> Brush.linearGradient(listOf(Color(0xFF22C55E), Color(0xFF15803D)))
+                VpnState.CONNECTING -> Brush.linearGradient(listOf(Color(0xFFF59E0B), Color(0xFFD97706)))
+                VpnState.DISCONNECTED -> Brush.linearGradient(listOf(Color(0xFF1874FA), Color(0xFF1536A8)))
+            }
+            val glowColor = when (state.vpnState) {
+                VpnState.CONNECTED -> Color(0xFF22C55E)
+                VpnState.CONNECTING -> Color(0xFFF59E0B)
+                VpnState.DISCONNECTED -> Color(0xFF1874FA)
+            }
+            Box(
+                modifier = Modifier
+                    .size(132.dp)
+                    .shadow(18.dp, CircleShape, ambientColor = glowColor, spotColor = glowColor)
+                    .clip(CircleShape)
+                    .background(gradient)
+                    .clickable(onClick = onToggleConnect),
+                contentAlignment = Alignment.Center
             ) {
                 if (state.vpnState == VpnState.CONNECTING) {
-                    CircularProgressIndicator(modifier = Modifier.size(44.dp))
+                    CircularProgressIndicator(color = Color.White, strokeWidth = 3.dp, modifier = Modifier.size(42.dp))
                 } else {
-                    Icon(
-                        imageVector = Icons.Default.PowerSettingsNew,
-                        contentDescription = stringResource(R.string.tab_connect),
-                        modifier = Modifier.size(54.dp)
-                    )
+                    Icon(Icons.Default.PowerSettingsNew, contentDescription = null, tint = Color.White, modifier = Modifier.size(48.dp))
                 }
             }
             Spacer(Modifier.height(14.dp))
             Text(
                 text = when (state.vpnState) {
-                    VpnState.DISCONNECTED -> stringResource(R.string.status_disconnected)
-                    VpnState.CONNECTING -> stringResource(R.string.status_connecting)
                     VpnState.CONNECTED -> stringResource(R.string.status_connected)
+                    VpnState.CONNECTING -> stringResource(R.string.status_connecting)
+                    VpnState.DISCONNECTED -> stringResource(R.string.status_disconnected)
                 },
-                style = MaterialTheme.typography.titleLarge
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = c.text
             )
-            // Compact real latency row + live up/down speed when connected
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                val delayText = when (val d = state.delayResult) {
-                    DelayResult.Idle -> "-- ms"
-                    DelayResult.Testing -> "..."
-                    is DelayResult.Success -> "${d.millis} ms"
-                    DelayResult.Timeout -> stringResource(R.string.delay_timeout)
-                    is DelayResult.Failed -> stringResource(R.string.delay_failed)
-                }
-                Text(
-                    text = delayText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                IconButton(
-                    onClick = onRefreshDelay,
-                    enabled = state.vpnState == VpnState.CONNECTED
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = stringResource(R.string.refresh_delay),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-            if (state.vpnState == VpnState.CONNECTED) {
-                Text(
-                    text = "↓ ${FormatUtils.formatSpeed(state.trafficSpeed.downBytesPerSec)}   ↑ ${FormatUtils.formatSpeed(state.trafficSpeed.upBytesPerSec)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
             state.vpnError?.let { err ->
-                Text(
-                    text = err,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
+                Spacer(Modifier.height(8.dp))
+                Surface(color = c.redSoft, shape = RoundedCornerShape(10.dp)) {
+                    Text(err, color = c.red, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp))
+                }
+            }
+        }
+
+        // 2x2 Metrics Grid (identical 4 metrics to macOS / Windows)
+        val delayVal = when (val d = state.delayResult) {
+            DelayResult.Idle -> "-- ms"
+            DelayResult.Testing -> "..."
+            is DelayResult.Success -> "${d.millis} ms"
+            DelayResult.Timeout -> stringResource(R.string.delay_timeout)
+            is DelayResult.Failed -> stringResource(R.string.delay_failed)
+        }
+        val downStr = if (state.vpnState == VpnState.CONNECTED) FormatUtils.formatSpeed(state.trafficSpeed.downBytesPerSec) else "0 B/s"
+        val upStr = if (state.vpnState == VpnState.CONNECTED) FormatUtils.formatSpeed(state.trafficSpeed.upBytesPerSec) else "0 B/s"
+        val usedStr = FormatUtils.formatBytes(srv?.totalUsedBytes ?: 0L)
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            MetricTile("↓ Download", downStr, Modifier.weight(1f))
+            MetricTile("↑ Upload", upStr, Modifier.weight(1f))
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            MetricTile(
+                label = "${stringResource(R.string.refresh_delay)} ↻",
+                value = delayVal,
+                modifier = Modifier.weight(1f),
+                valueColor = if (state.delayResult is DelayResult.Success) c.green else c.text,
+                onClick = if (state.vpnState == VpnState.CONNECTED) onRefreshDelay else null
+            )
+            MetricTile(stringResource(R.string.used_traffic_fmt, "").trim(), usedStr, Modifier.weight(1f))
+        }
+
+        // Quick Mode Controls (clean unified pill selector + routing card)
+        BmvCard(modifier = Modifier.fillMaxWidth(), radius = 12.dp) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                ModePill(
+                    label = stringResource(R.string.mode_smart),
+                    selected = state.persisted.proxyMode == ProxyMode.SMART,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSelectProxyMode(ProxyMode.SMART) }
+                )
+                ModePill(
+                    label = stringResource(R.string.mode_global),
+                    selected = state.persisted.proxyMode == ProxyMode.GLOBAL,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSelectProxyMode(ProxyMode.GLOBAL) }
                 )
             }
         }
 
-        // Server Selector + Proxy Mode + Routing Rule + Fixed Bottom Sponsor Banner
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            OutlinedCard(
-                onClick = onOpenServers,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(Modifier.padding(14.dp)) {
-                    Text(
-                        text = stringResource(R.string.current_server),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(3.dp))
-                    val server = state.selectedServer
-                    Text(
-                        text = if (server != null) {
-                            val prefix = if (server.flagEmoji.isNotBlank()) "${server.flagEmoji} " else ""
-                            "$prefix${server.name} · ${server.host}"
-                        } else {
-                            stringResource(R.string.no_server_yet)
-                        },
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                }
-            }
-
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                SegmentedButton(
-                    selected = state.persisted.proxyMode == ProxyMode.SMART,
-                    onClick = { onSelectProxyMode(ProxyMode.SMART) },
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                ) {
-                    Text(stringResource(R.string.mode_smart))
-                }
-                SegmentedButton(
-                    selected = state.persisted.proxyMode == ProxyMode.GLOBAL,
-                    onClick = { onSelectProxyMode(ProxyMode.GLOBAL) },
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                ) {
-                    Text(stringResource(R.string.mode_global))
-                }
-            }
-
-            if (state.persisted.proxyMode == ProxyMode.SMART) {
-                OutlinedCard(
-                    onClick = onOpenRulePicker,
-                    modifier = Modifier.fillMaxWidth()
+        if (state.persisted.proxyMode == ProxyMode.SMART) {
+            BmvCard(modifier = Modifier.fillMaxWidth(), radius = 12.dp, onClick = onOpenRulePicker) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
                         text = when (state.persisted.routingRule) {
@@ -589,565 +591,391 @@ private fun ConnectScreen(
                             RoutingRule.IR -> stringResource(R.string.rule_ir)
                             RoutingRule.RU -> stringResource(R.string.rule_ru)
                         },
-                        modifier = Modifier.padding(13.dp),
-                        style = MaterialTheme.typography.bodyMedium
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = c.text
                     )
+                    Text("›", color = c.muted, fontSize = 18.sp)
                 }
             }
-
-            SponsorBannerCard(
-                banner = state.monetization.connectBanner,
-                onClick = onClickConnectBanner
-            )
         }
     }
 }
 
 @Composable
-private fun ServersScreen(
-    modifier: Modifier,
+private fun MetricTile(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    valueColor: Color = LocalBmvColors.current.text,
+    onClick: (() -> Unit)? = null
+) {
+    val c = LocalBmvColors.current
+    BmvCard(modifier = modifier, radius = 12.dp, onClick = onClick) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Text(label, fontSize = 11.5.sp, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(3.dp))
+            Text(value, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = valueColor, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun ModePill(label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val c = LocalBmvColors.current
+    val shape = RoundedCornerShape(9.dp)
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(if (selected) c.accent else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(vertical = 9.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (selected) Color.White else c.textSecondary
+        )
+    }
+}
+
+@Composable
+private fun ServersView(
     servers: List<ServerProfile>,
     selectedId: String?,
     onlineMap: Map<String, OnlineStatus>,
-    addVpsBanner: BannerSlot,
     onSelect: (String) -> Unit,
     onEdit: (ServerProfile) -> Unit,
-    onRefreshStatus: () -> Unit,
-    onClickVpsBanner: () -> Unit,
-    onAddClick: () -> Unit
+    onRefresh: () -> Unit,
+    onAdd: () -> Unit
 ) {
+    val c = LocalBmvColors.current
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(20.dp),
+        modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        if (servers.isEmpty()) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = stringResource(R.string.no_server_yet),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.tab_servers),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                IconButton(onClick = onRefreshStatus, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = stringResource(R.string.refresh_status),
-                        modifier = Modifier.size(18.dp)
-                    )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(stringResource(R.string.tab_servers), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = c.text)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    modifier = Modifier.size(36.dp).clip(RoundedCornerShape(9.dp)).clickable(onClick = onRefresh),
+                    shape = RoundedCornerShape(9.dp),
+                    color = c.surface,
+                    border = BorderStroke(1.dp, c.border)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Refresh, stringResource(R.string.refresh_status), tint = c.text, modifier = Modifier.size(18.dp))
+                    }
+                }
+                Button(
+                    onClick = onAdd,
+                    shape = RoundedCornerShape(9.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = c.accent, contentColor = Color.White)
+                ) {
+                    Icon(Icons.Default.Add, null, Modifier.size(16.dp))
+                    Spacer(Modifier.size(4.dp))
+                    Text(stringResource(R.string.add_vps), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
+        }
 
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(servers, key = { it.id }) { server ->
-                    val isSelected = server.id == selectedId
-                    val online = onlineMap[server.id] ?: OnlineStatus.UNKNOWN
-                    val dotColor = when (online) {
-                        OnlineStatus.ONLINE -> Color(0xFF22C55E)
-                        OnlineStatus.OFFLINE -> Color(0xFFEF4444)
-                        OnlineStatus.CHECKING, OnlineStatus.UNKNOWN -> Color(0xFF9CA3AF)
+        if (servers.isEmpty()) {
+            BmvCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 44.dp, horizontal = 20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(stringResource(R.string.no_server_yet), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = c.text)
+                    Button(
+                        onClick = onAdd,
+                        shape = RoundedCornerShape(9.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = c.accent, contentColor = Color.White)
+                    ) {
+                        Icon(Icons.Default.Add, null, Modifier.size(16.dp))
+                        Spacer(Modifier.size(6.dp))
+                        Text(stringResource(R.string.add_vps))
                     }
-                    val statusLabel = when (online) {
+                }
+            }
+        } else {
+            LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(servers, key = { it.id }) { srv ->
+                    val selected = srv.id == selectedId
+                    val online = onlineMap[srv.id] ?: OnlineStatus.UNKNOWN
+                    val dotColor = when (online) {
+                        OnlineStatus.ONLINE -> c.green
+                        OnlineStatus.OFFLINE -> c.red
+                        else -> c.muted
+                    }
+                    val statusText = when (online) {
                         OnlineStatus.ONLINE -> stringResource(R.string.vps_online)
                         OnlineStatus.OFFLINE -> stringResource(R.string.vps_offline)
-                        OnlineStatus.CHECKING, OnlineStatus.UNKNOWN -> stringResource(R.string.vps_checking)
+                        else -> stringResource(R.string.vps_checking)
                     }
-
-                    OutlinedCard(
-                        onClick = { onSelect(server.id) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    BmvCard(modifier = Modifier.fillMaxWidth(), selected = selected, onClick = { onSelect(srv.id) }) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Box(Modifier.size(8.dp).clip(CircleShape).background(dotColor))
+                            Text(srv.flagEmoji.ifBlank { "🌐" }, fontSize = 20.sp)
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(9.dp)
-                                            .clip(CircleShape)
-                                            .background(dotColor)
-                                    )
-                                    val prefix = if (server.flagEmoji.isNotBlank()) "${server.flagEmoji} " else ""
-                                    Text(
-                                        text = "$prefix${server.name}",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    if (isSelected) {
-                                        Icon(
-                                            Icons.Default.CheckCircle,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(17.dp)
-                                        )
+                                    Text(srv.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    BmvBadge(if (srv.activeTransport == ActiveTransport.HYSTERIA2) "Hysteria2" else "REALITY", c.accentSoft, c.accent)
+                                    if (srv.bbrStatus == "enabled" || srv.bbrStatus == "already_enabled") {
+                                        BmvBadge("BBR ✓", c.greenSoft, c.green)
                                     }
                                 }
-                                val regionSuffix = server.regionLabel?.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty()
+                                val reg = srv.regionLabel?.takeIf { it.isNotBlank() }?.let { "$it · " }.orEmpty()
                                 Text(
-                                    text = "${server.host}$regionSuffix",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    "$reg${srv.host}:${srv.port} · $statusText · ${stringResource(R.string.used_traffic_fmt, FormatUtils.formatBytes(srv.totalUsedBytes))}",
+                                    fontSize = 12.sp,
+                                    color = c.muted,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                                val proto = if (server.activeTransport == ActiveTransport.HYSTERIA2) "Hysteria2" else "VLESS + REALITY"
-                                Text(
-                                    text = "$statusLabel · $proto · ${stringResource(R.string.used_traffic_fmt, FormatUtils.formatBytes(server.totalUsedBytes))}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
                             }
-                            IconButton(onClick = { onEdit(server) }) {
-                                Icon(Icons.Default.MoreVert, contentDescription = null)
+                            IconButton(onClick = { onEdit(srv) }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Default.MoreVert, null, tint = c.muted, modifier = Modifier.size(18.dp))
                             }
                         }
                     }
                 }
             }
         }
+    }
+}
 
-        SponsorBannerCard(
-            banner = addVpsBanner,
-            onClick = onClickVpsBanner
-        )
+@Composable
+private fun SettingsView(
+    state: MainUiState,
+    themeMode: ThemeMode,
+    onCycleTheme: () -> Unit,
+    onOpenLanguage: () -> Unit,
+    onUpdateRules: () -> Unit,
+    onOpenDonate: () -> Unit
+) {
+    val c = LocalBmvColors.current
+    val ctx = LocalContext.current
+    val copied = stringResource(R.string.copied_toast)
+    var showLogs by remember { mutableStateOf(false) }
 
-        Button(
-            onClick = onAddClick,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(Icons.Default.Add, contentDescription = null)
-            Spacer(Modifier.size(8.dp))
-            Text(stringResource(R.string.add_vps))
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(stringResource(R.string.settings), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = c.text)
+
+        BmvCard(modifier = Modifier.fillMaxWidth()) {
+            SettingRow(stringResource(R.string.app_language), "17 Languages · RTL", "›", onOpenLanguage)
+            HorizontalDivider(color = c.border)
+            val themeLabel = when (themeMode) {
+                ThemeMode.AUTO -> "◐ Auto (06:00–18:59)"
+                ThemeMode.LIGHT -> "☀ Light"
+                ThemeMode.DARK -> "☾ Dark"
+            }
+            SettingRow("Appearance", themeLabel, "↻", onCycleTheme)
+            HorizontalDivider(color = c.border)
+            SettingRow(
+                title = stringResource(R.string.rules_update_title),
+                subtitle = state.ruleUpdateMessage ?: state.persisted.rulesUpdatedAt ?: stringResource(R.string.rules_builtin),
+                trailing = if (state.ruleUpdating) "..." else "↓",
+                onClick = if (state.ruleUpdating) null else onUpdateRules
+            )
+            HorizontalDivider(color = c.border)
+            SettingRow(stringResource(R.string.support_developer), stringResource(R.string.donate_voluntary_note), "♡", onOpenDonate)
         }
+
+        // Core Logs (matching Desktop dark monospace console)
+        BmvCard(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(stringResource(R.string.view_logs), fontWeight = FontWeight.SemiBold, fontSize = 13.5.sp, color = c.text)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        TextButton(onClick = { showLogs = !showLogs }) {
+                            Text(if (showLogs) stringResource(R.string.hide_logs) else stringResource(R.string.view_logs), fontSize = 12.sp)
+                        }
+                        if (showLogs) {
+                            TextButton(onClick = {
+                                copyText(ctx, "Logs", state.recentLogs.takeLast(30).joinToString("\n"), copied)
+                            }) {
+                                Text(stringResource(R.string.copy_logs), fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+                if (showLogs) {
+                    val text = state.recentLogs.takeLast(25).joinToString("\n").ifBlank { stringResource(R.string.no_logs) }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFF0C0C0F))
+                            .border(1.dp, c.border, RoundedCornerShape(10.dp))
+                            .padding(10.dp)
+                    ) {
+                        Text(text, fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = Color(0xFFD4D4D8))
+                    }
+                }
+            }
+        }
+
+        // About & Links
+        BmvCard(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Build MyVpn v1.1.1", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = c.text)
+                Text(stringResource(R.string.settings_privacy_note), fontSize = 12.sp, color = c.muted)
+                Text(stringResource(R.string.settings_license_note), fontSize = 12.sp, color = c.muted)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { openUrl(ctx, state.monetization.websiteUrl) }, shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)) {
+                        Text(stringResource(R.string.website_link), fontSize = 12.sp)
+                    }
+                    OutlinedButton(onClick = { openUrl(ctx, "https://github.com/Gouryella811/build-myvpn") }, shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)) {
+                        Text("GitHub", fontSize = 12.sp)
+                    }
+                    OutlinedButton(onClick = { openUrl(ctx, state.monetization.privacyUrl) }, shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)) {
+                        Text(stringResource(R.string.privacy_policy), fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingRow(title: String, subtitle: String, trailing: String, onClick: (() -> Unit)?) {
+    val c = LocalBmvColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 13.5.sp, color = c.text)
+            Text(subtitle, fontSize = 12.sp, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Text(trailing, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = c.accent, modifier = Modifier.padding(start = 10.dp))
     }
 }
 
 @Composable
 private fun AddVpsDialog(
     deployState: DeployUiState,
-    addVpsBanner: BannerSlot,
-    onOpenVpsGuide: () -> Unit,
-    onDeploy: (
-        nickname: String,
-        host: String,
-        sshPort: Int,
-        sshUser: String,
-        password: CharArray?,
-        privateKey: String?,
-        enableHy2Dual: Boolean
-    ) -> Unit,
+    onDeploy: (String, String, Int, String, CharArray?, String?, Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var nickname by remember { mutableStateOf("") }
+    val c = LocalBmvColors.current
+    var nick by remember { mutableStateOf("") }
     var host by remember { mutableStateOf("") }
-    var usePrivateKey by remember { mutableStateOf(false) }
-    var password by remember { mutableStateOf("") }
-    var privateKey by remember { mutableStateOf("") }
-    var showAdvanced by remember { mutableStateOf(false) }
-    var sshUser by remember { mutableStateOf("root") }
-    var sshPortText by remember { mutableStateOf("22") }
-    var enableHysteria2 by remember { mutableStateOf(false) }
-    var acknowledgedHy2Risk by remember { mutableStateOf(false) }
-    var hostError by remember { mutableStateOf(false) }
+    var useKey by remember { mutableStateOf(false) }
+    var pass by remember { mutableStateOf("") }
+    var key by remember { mutableStateOf("") }
+    var adv by remember { mutableStateOf(false) }
+    var user by remember { mutableStateOf("root") }
+    var port by remember { mutableStateOf("22") }
+    var hy2 by remember { mutableStateOf(false) }
+    var ackHy2 by remember { mutableStateOf(false) }
+    var hostErr by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.add_vps)) },
+        title = { Text(stringResource(R.string.add_vps), fontWeight = FontWeight.Bold) },
         text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                if (!deployState.inProgress) {
-                    SponsorBannerCard(
-                        banner = addVpsBanner,
-                        onClick = onOpenVpsGuide
-                    )
-                }
-
-                OutlinedTextField(
-                    value = nickname,
-                    onValueChange = { nickname = it },
-                    label = { Text(stringResource(R.string.server_nickname_label)) },
-                    singleLine = true,
-                    enabled = !deployState.inProgress
-                )
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(nick, { nick = it }, label = { Text(stringResource(R.string.server_nickname_label)) }, singleLine = true, enabled = !deployState.inProgress)
                 OutlinedTextField(
                     value = host,
-                    onValueChange = {
-                        host = it
-                        hostError = it.isNotBlank() && !HostValidator.isValidHost(it)
-                    },
+                    onValueChange = { host = it; hostErr = it.isNotBlank() && !HostValidator.isValidHost(it) },
                     label = { Text(stringResource(R.string.server_host_label)) },
-                    isError = hostError,
-                    supportingText = {
-                        if (hostError) Text(stringResource(R.string.invalid_host_error))
-                    },
+                    isError = hostErr,
+                    supportingText = { if (hostErr) Text(stringResource(R.string.invalid_host_error)) },
                     singleLine = true,
                     enabled = !deployState.inProgress
                 )
-
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(selected = !usePrivateKey, onClick = { usePrivateKey = false }, enabled = !deployState.inProgress)
-                    Text(stringResource(R.string.ssh_auth_password))
-                    Spacer(Modifier.size(12.dp))
-                    RadioButton(selected = usePrivateKey, onClick = { usePrivateKey = true }, enabled = !deployState.inProgress)
-                    Text(stringResource(R.string.ssh_auth_key))
+                    RadioButton(!useKey, { useKey = false }, enabled = !deployState.inProgress)
+                    Text(stringResource(R.string.ssh_auth_password), fontSize = 13.sp)
+                    Spacer(Modifier.size(8.dp))
+                    RadioButton(useKey, { useKey = true }, enabled = !deployState.inProgress)
+                    Text(stringResource(R.string.ssh_auth_key), fontSize = 13.sp)
                 }
-
-                if (!usePrivateKey) {
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = { Text(stringResource(R.string.ssh_password_label)) },
-                        visualTransformation = PasswordVisualTransformation(),
-                        singleLine = true,
-                        enabled = !deployState.inProgress
-                    )
+                if (!useKey) {
+                    OutlinedTextField(pass, { pass = it }, label = { Text(stringResource(R.string.ssh_password_label)) }, visualTransformation = PasswordVisualTransformation(), singleLine = true, enabled = !deployState.inProgress)
                 } else {
-                    OutlinedTextField(
-                        value = privateKey,
-                        onValueChange = { privateKey = it },
-                        label = { Text(stringResource(R.string.ssh_key_label)) },
-                        maxLines = 4,
-                        enabled = !deployState.inProgress
-                    )
+                    OutlinedTextField(key, { key = it }, label = { Text(stringResource(R.string.ssh_key_label)) }, maxLines = 4, enabled = !deployState.inProgress)
                 }
-
-                TextButton(onClick = { showAdvanced = !showAdvanced }, enabled = !deployState.inProgress) {
-                    Text(
-                        if (showAdvanced) stringResource(R.string.hide_advanced_ssh)
-                        else stringResource(R.string.show_advanced_ssh)
-                    )
+                TextButton(onClick = { adv = !adv }, enabled = !deployState.inProgress) {
+                    Text(stringResource(if (adv) R.string.hide_advanced_ssh else R.string.show_advanced_ssh), fontSize = 12.5.sp)
                 }
-                if (showAdvanced) {
-                    OutlinedTextField(
-                        value = sshUser,
-                        onValueChange = { sshUser = it },
-                        label = { Text(stringResource(R.string.ssh_username_label)) },
-                        singleLine = true,
-                        enabled = !deployState.inProgress
-                    )
-                    OutlinedTextField(
-                        value = sshPortText,
-                        onValueChange = { sshPortText = it.filter { ch -> ch.isDigit() } },
-                        label = { Text(stringResource(R.string.ssh_port_label)) },
-                        singleLine = true,
-                        enabled = !deployState.inProgress
-                    )
+                if (adv) {
+                    OutlinedTextField(user, { user = it }, label = { Text(stringResource(R.string.ssh_username_label)) }, singleLine = true, enabled = !deployState.inProgress)
+                    OutlinedTextField(port, { port = it.filter(Char::isDigit) }, label = { Text(stringResource(R.string.ssh_port_label)) }, singleLine = true, enabled = !deployState.inProgress)
                 }
-
-                HorizontalDivider()
-
+                HorizontalDivider(color = c.border)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = !enableHysteria2,
-                        onClick = {
-                            enableHysteria2 = false
-                            acknowledgedHy2Risk = false
-                        },
-                        enabled = !deployState.inProgress
-                    )
-                    Text(stringResource(R.string.protocol_reality_label), style = MaterialTheme.typography.bodyMedium)
+                    RadioButton(!hy2, { hy2 = false; ackHy2 = false }, enabled = !deployState.inProgress)
+                    Text(stringResource(R.string.protocol_reality_label), fontSize = 13.sp)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = enableHysteria2,
-                        onClick = { enableHysteria2 = true },
-                        enabled = !deployState.inProgress
-                    )
-                    Text(stringResource(R.string.protocol_hy2_label), style = MaterialTheme.typography.bodyMedium)
+                    RadioButton(hy2, { hy2 = true }, enabled = !deployState.inProgress)
+                    Text(stringResource(R.string.protocol_hy2_label), fontSize = 13.sp)
                 }
-
-                if (enableHysteria2) {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
-                        )
-                    ) {
+                if (hy2) {
+                    Surface(color = c.amberSoft, shape = RoundedCornerShape(10.dp)) {
                         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Icon(
-                                    imageVector = Icons.Default.Warning,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onErrorContainer
-                                )
-                                Text(
-                                    text = stringResource(R.string.hy2_block_risk_warning),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onErrorContainer
-                                )
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Icon(Icons.Default.Warning, null, tint = c.amber, modifier = Modifier.size(18.dp))
+                                Text(stringResource(R.string.hy2_block_risk_warning), fontSize = 12.sp, color = c.text)
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(
-                                    checked = acknowledgedHy2Risk,
-                                    onCheckedChange = { acknowledgedHy2Risk = it },
-                                    enabled = !deployState.inProgress
-                                )
-                                Text(
-                                    text = stringResource(R.string.hy2_ack_checkbox),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onErrorContainer
-                                )
+                                Checkbox(ackHy2, { ackHy2 = it }, enabled = !deployState.inProgress)
+                                Text(stringResource(R.string.hy2_ack_checkbox), fontSize = 12.sp, color = c.text)
                             }
                         }
                     }
                 }
-
                 if (deployState.inProgress) {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                    Text(
-                        text = deployState.statusMessage.ifBlank { stringResource(R.string.deploying_progress) },
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                    LinearProgressIndicator(Modifier.fillMaxWidth(), color = c.accent)
+                    Text(deployState.statusMessage.ifBlank { stringResource(R.string.deploying_progress) }, fontSize = 12.sp, color = c.muted)
                 }
-
-                deployState.errorMessage?.let { err ->
-                    Text(
-                        text = err,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
+                deployState.errorMessage?.let { Text(it, fontSize = 12.sp, color = c.red) }
             }
         },
         confirmButton = {
             Button(
-                enabled = !deployState.inProgress && (!enableHysteria2 || acknowledgedHy2Risk),
+                enabled = !deployState.inProgress && (!hy2 || ackHy2),
                 onClick = {
-                    if (!HostValidator.isValidHost(host)) {
-                        hostError = true
-                        return@Button
-                    }
-                    val portNum = sshPortText.toIntOrNull()?.takeIf { it in 1..65535 } ?: 22
-                    val passChars = if (!usePrivateKey) password.toCharArray() else null
-                    val keyText = if (usePrivateKey) privateKey else null
-                    password = ""
-                    onDeploy(nickname, host, portNum, sshUser, passChars, keyText, enableHysteria2)
+                    if (!HostValidator.isValidHost(host)) { hostErr = true; return@Button }
+                    val p = port.toIntOrNull()?.takeIf { it in 1..65535 } ?: 22
+                    val pwd = if (!useKey) pass.toCharArray() else null
+                    val pem = if (useKey) key else null
+                    pass = ""
+                    onDeploy(nick, host, p, user, pwd, pem, hy2)
                 }
-            ) {
-                Text(stringResource(R.string.deploy_start))
-            }
+            ) { Text(stringResource(R.string.deploy_start)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !deployState.inProgress) {
-                Text(stringResource(R.string.cancel))
-            }
-        }
-    )
-}
-
-@Composable
-private fun LanguagePickerDialog(onDismiss: () -> Unit) {
-    val currentTags = AppCompatDelegate.getApplicationLocales().toLanguageTags()
-    val recLabel = stringResource(R.string.recommended_badge)
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.app_language)) },
-        text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                SUPPORTED_LANGUAGES.forEach { option ->
-                    val selected = if (option.tag.isEmpty()) {
-                        currentTags.isEmpty()
-                    } else {
-                        currentTags.equals(option.tag, ignoreCase = true) ||
-                            currentTags.startsWith("${option.tag}-", ignoreCase = true)
-                    }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        RadioButton(
-                            selected = selected,
-                            onClick = {
-                                val locales = if (option.tag.isEmpty()) {
-                                    LocaleListCompat.getEmptyLocaleList()
-                                } else {
-                                    LocaleListCompat.forLanguageTags(option.tag)
-                                }
-                                AppCompatDelegate.setApplicationLocales(locales)
-                                onDismiss()
-                            }
-                        )
-                        val display = if (option.tag.isEmpty()) {
-                            stringResource(R.string.language_follow_system)
-                        } else if (option.recommended) {
-                            "${option.nativeName} · $recLabel"
-                        } else {
-                            option.nativeName
-                        }
-                        Text(display, style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        }
-    )
-}
-
-@Composable
-private fun RecommendedVpsDialog(
-    items: List<RecommendedVpsItem>,
-    guideUrl: String,
-    onDismiss: () -> Unit
-) {
-    val context = LocalContext.current
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.vps_guide_title)) },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.vps_guide_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                items.forEach { vps ->
-                    OutlinedCard(
-                        onClick = { openExternalUrl(context, vps.url) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(vps.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                                Text(
-                                    vps.price,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                            Text(
-                                vps.highlights,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-                OutlinedButton(
-                    onClick = { openExternalUrl(context, guideUrl) },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(stringResource(R.string.open_full_guide))
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
-        }
-    )
-}
-
-@Composable
-private fun SupportDeveloperDialog(
-    donations: DonationConfig,
-    onDismiss: () -> Unit
-) {
-    val context = LocalContext.current
-    val copiedToast = stringResource(R.string.copied_toast)
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Default.Favorite, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Text(stringResource(R.string.support_developer))
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Text(stringResource(R.string.donate_voluntary_note), style = MaterialTheme.typography.bodySmall)
-
-                if (donations.paypalUrl.isNotBlank()) {
-                    Button(
-                        onClick = { openExternalUrl(context, donations.paypalUrl) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("PayPal.Me") }
-                }
-                if (donations.kofiUrl.isNotBlank()) {
-                    OutlinedButton(
-                        onClick = { openExternalUrl(context, donations.kofiUrl) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("Ko-fi") }
-                }
-                if (donations.afdianUrl.isNotBlank()) {
-                    OutlinedButton(
-                        onClick = { openExternalUrl(context, donations.afdianUrl) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("Afdian (WeChat / Alipay)") }
-                }
-
-                val validCrypto = donations.crypto.filter { it.address.isNotBlank() }
-                if (validCrypto.isNotEmpty()) {
-                    HorizontalDivider()
-                    Text(stringResource(R.string.donate_crypto_title), style = MaterialTheme.typography.titleSmall)
-                    validCrypto.forEach { item ->
-                        OutlinedCard(
-                            onClick = {
-                                copyToClipboard(context, item.network, item.address, copiedToast)
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(item.network, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                    Text(
-                                        item.address,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
+            TextButton(onClick = onDismiss, enabled = !deployState.inProgress) { Text(stringResource(R.string.cancel)) }
         }
     )
 }
@@ -1161,105 +989,54 @@ private fun ServerDetailDialog(
     onDelete: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val context = LocalContext.current
-    val copiedToast = stringResource(R.string.copied_toast)
-    var nameInput by remember { mutableStateOf(server.name) }
+    val c = LocalBmvColors.current
+    val ctx = LocalContext.current
+    val copied = stringResource(R.string.copied_toast)
+    var name by remember { mutableStateOf(server.name) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = {
-            val prefix = if (server.flagEmoji.isNotBlank()) "${server.flagEmoji} " else ""
-            Text("$prefix${server.name}")
-        },
+        title = { Text("${server.flagEmoji.ifBlank { "🌐" }} ${server.name}", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
-                    value = nameInput,
-                    onValueChange = { nameInput = it },
-                    label = { Text(stringResource(R.string.server_nickname_label)) },
-                    singleLine = true
-                )
-                Text(
-                    text = "${server.host}:${server.port} · BBR: ${server.bbrStatus ?: "-"}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                server.regionLabel?.takeIf { it.isNotBlank() }?.let { region ->
-                    Text(
-                        text = "${server.flagEmoji} $region",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                OutlinedTextField(name, { name = it }, label = { Text(stringResource(R.string.server_nickname_label)) }, singleLine = true)
+                Text("${server.host}:${server.port} · BBR: ${server.bbrStatus ?: "-"}", fontSize = 12.sp, color = c.muted)
+                Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                    Text(stringResource(R.string.traffic_detail_fmt, FormatUtils.formatBytes(server.usedRxBytes), FormatUtils.formatBytes(server.usedTxBytes)), fontSize = 12.sp)
+                    TextButton(onClick = onResetTraffic) { Text(stringResource(R.string.reset_traffic), fontSize = 12.sp) }
                 }
-
-                // Per-VPS traffic statistics & reset
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = stringResource(
-                            R.string.traffic_detail_fmt,
-                            FormatUtils.formatBytes(server.usedRxBytes),
-                            FormatUtils.formatBytes(server.usedTxBytes)
-                        ),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    TextButton(onClick = onResetTraffic) {
-                        Text(stringResource(R.string.reset_traffic))
-                    }
-                }
-
-                if (server.deployedMode == DeployedProtocolMode.DUAL &&
-                    server.reality != null && server.hysteria2 != null
-                ) {
+                if (server.deployedMode == DeployedProtocolMode.DUAL && server.reality != null && server.hysteria2 != null) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { onSwitchTransport(ActiveTransport.REALITY) }) {
-                            Text(if (server.activeTransport == ActiveTransport.REALITY) "✓ REALITY" else "REALITY")
+                            Text(if (server.activeTransport == ActiveTransport.REALITY) "✓ REALITY" else "REALITY", fontSize = 12.sp)
                         }
                         OutlinedButton(onClick = { onSwitchTransport(ActiveTransport.HYSTERIA2) }) {
-                            Text(if (server.activeTransport == ActiveTransport.HYSTERIA2) "✓ Hysteria2" else "Hysteria2")
+                            Text(if (server.activeTransport == ActiveTransport.HYSTERIA2) "✓ Hysteria2" else "Hysteria2", fontSize = 12.sp)
                         }
                     }
                 }
-
                 OutlinedButton(
-                    onClick = {
-                        val uri = server.toShareUri()
-                        if (uri != null) {
-                            copyToClipboard(context, "Build MyVpn Node", uri, copiedToast)
-                        }
-                    },
+                    onClick = { server.toShareUri()?.let { copyText(ctx, "Build MyVpn Node", it, copied) } },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.ContentCopy, null, Modifier.size(15.dp))
                     Spacer(Modifier.size(6.dp))
-                    Text(stringResource(R.string.copy_node_uri))
+                    Text(stringResource(R.string.copy_node_uri), fontSize = 13.sp)
                 }
-
                 TextButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                    Icon(Icons.Default.Delete, null, tint = c.red, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.size(6.dp))
-                    Text(stringResource(R.string.delete_server), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.delete_server), color = c.red)
                 }
             }
         },
-        confirmButton = {
-            Button(onClick = { onRename(nameInput) }) { Text(stringResource(R.string.ok)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        }
+        confirmButton = { Button(onClick = { onRename(name) }) { Text(stringResource(R.string.ok)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
     )
 }
 
 @Composable
-private fun RulePickerDialog(
-    current: RoutingRule,
-    onSelect: (RoutingRule) -> Unit,
-    onDismiss: () -> Unit
-) {
+private fun RuleDialog(current: RoutingRule, onSelect: (RoutingRule) -> Unit, onDismiss: () -> Unit) {
     val items = listOf(
         RoutingRule.GENERAL to stringResource(R.string.rule_general),
         RoutingRule.CN to stringResource(R.string.rule_cn),
@@ -1268,137 +1045,94 @@ private fun RulePickerDialog(
     )
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.mode_smart)) },
+        title = { Text(stringResource(R.string.mode_smart), fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 items.forEach { (rule, label) ->
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth().clickable { onSelect(rule) }.padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        RadioButton(selected = current == rule, onClick = { onSelect(rule) })
-                        Text(label)
+                        RadioButton(current == rule, { onSelect(rule) })
+                        Text(label, fontSize = 13.5.sp)
                     }
                 }
             }
         },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        }
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
     )
 }
 
 @Composable
-private fun SettingsDialog(
-    monetization: MonetizationConfig,
-    rulesUpdatedAt: String?,
-    ruleUpdating: Boolean,
-    ruleUpdateMessage: String?,
-    recentLogs: List<String>,
-    onOpenLanguage: () -> Unit,
-    onUpdateRules: () -> Unit,
-    onOpenDonate: () -> Unit,
-    onOpenVpsGuide: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    val context = LocalContext.current
-    val copiedToast = stringResource(R.string.copied_toast)
-    var showLogs by remember { mutableStateOf(false) }
-
+private fun LanguageDialog(onDismiss: () -> Unit) {
+    val currentTags = AppCompatDelegate.getApplicationLocales().toLanguageTags()
+    val recLabel = stringResource(R.string.recommended_badge)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.settings)) },
+        title = { Text(stringResource(R.string.app_language), fontWeight = FontWeight.Bold) },
         text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onOpenLanguage,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.Language, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.size(8.dp))
-                    Text(stringResource(R.string.app_language))
-                }
-
-                Button(
-                    onClick = onOpenDonate,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.size(8.dp))
-                    Text(stringResource(R.string.support_developer))
-                }
-
-                OutlinedButton(
-                    onClick = onOpenVpsGuide,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(stringResource(R.string.vps_guide_title))
-                }
-
-                HorizontalDivider()
-
-                Text(stringResource(R.string.rules_update_title), style = MaterialTheme.typography.titleSmall)
-                Text(
-                    text = rulesUpdatedAt ?: stringResource(R.string.rules_builtin),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                OutlinedButton(
-                    onClick = onUpdateRules,
-                    enabled = !ruleUpdating,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        if (ruleUpdating) stringResource(R.string.rules_updating)
-                        else stringResource(R.string.rules_update_now)
-                    )
-                }
-                ruleUpdateMessage?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall)
-                }
-
-                HorizontalDivider()
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = { openExternalUrl(context, monetization.websiteUrl) }) {
-                        Text(stringResource(R.string.website_link))
-                    }
-                    TextButton(onClick = { openExternalUrl(context, monetization.privacyUrl) }) {
-                        Text(stringResource(R.string.privacy_policy))
-                    }
-                    TextButton(onClick = { openExternalUrl(context, "https://github.com/Gouryella811/build-myvpn") }) {
-                        Text("GitHub")
-                    }
-                }
-
-                TextButton(onClick = { showLogs = !showLogs }) {
-                    Text(
-                        if (showLogs) stringResource(R.string.hide_logs)
-                        else stringResource(R.string.view_logs)
-                    )
-                }
-                if (showLogs) {
-                    val logText = recentLogs.takeLast(20).joinToString("\n")
-                        .ifBlank { stringResource(R.string.no_logs) }
-                    Text(logText, style = MaterialTheme.typography.bodySmall)
-                    OutlinedButton(
-                        onClick = { copyToClipboard(context, "Build MyVpn Logs", logText, copiedToast) },
-                        modifier = Modifier.fillMaxWidth()
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                LANGUAGES.forEach { item ->
+                    val selected = if (item.tag.isEmpty()) currentTags.isEmpty()
+                    else currentTags.equals(item.tag, true) || currentTags.startsWith("${item.tag}-", true)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            val list = if (item.tag.isEmpty()) LocaleListCompat.getEmptyLocaleList()
+                            else LocaleListCompat.forLanguageTags(item.tag)
+                            AppCompatDelegate.setApplicationLocales(list)
+                            onDismiss()
+                        }.padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(stringResource(R.string.copy_logs))
+                        RadioButton(selected, null)
+                        val label = when {
+                            item.tag.isEmpty() -> stringResource(R.string.language_follow_system)
+                            item.rec -> "${item.name} ★ ($recLabel)"
+                            else -> item.name
+                        }
+                        Text(label, fontSize = 13.5.sp, modifier = Modifier.padding(start = 6.dp))
                     }
                 }
-
-                HorizontalDivider()
-                Text(stringResource(R.string.settings_privacy_note), style = MaterialTheme.typography.bodySmall)
-                Text(stringResource(R.string.settings_license_note), style = MaterialTheme.typography.bodySmall)
             }
         },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
-        }
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
+    )
+}
+
+@Composable
+private fun DonateDialog(donations: DonationConfig, onDismiss: () -> Unit) {
+    val c = LocalBmvColors.current
+    val ctx = LocalContext.current
+    val copied = stringResource(R.string.copied_toast)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Default.Favorite, null, tint = c.accent)
+                Text(stringResource(R.string.support_developer), fontWeight = FontWeight.Bold)
+            }
+        },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(R.string.donate_voluntary_note), fontSize = 12.5.sp, color = c.muted)
+                listOf("PayPal.Me" to donations.paypalUrl, "Ko-fi" to donations.kofiUrl, "Afdian" to donations.afdianUrl)
+                    .filter { it.second.isNotBlank() }
+                    .forEach { (name, url) ->
+                        OutlinedButton(onClick = { openUrl(ctx, url) }, modifier = Modifier.fillMaxWidth()) { Text(name) }
+                    }
+                donations.crypto.filter { it.address.isNotBlank() }.forEach { item ->
+                    BmvCard(modifier = Modifier.fillMaxWidth(), radius = 10.dp, onClick = { copyText(ctx, item.network, item.address, copied) }) {
+                        Row(Modifier.fillMaxWidth().padding(10.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(item.network, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(item.address, fontSize = 11.5.sp, color = c.muted)
+                            }
+                            Icon(Icons.Default.ContentCopy, null, tint = c.muted, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) } }
     )
 }

@@ -1,6 +1,6 @@
 [package]
 name = "build-myvpn-desktop"
-version = "1.1.0"
+version = "1.1.1"
 description = "Build MyVpn — Free, open-source self-hosted VPS VPN client for Windows & macOS"
 authors = ["Build MyVpn Contributors"]
 license = "GPL-3.0-or-later"
