@@ -8,6 +8,8 @@ import com.buildmyvpn.data.AppPersistedState
 import com.buildmyvpn.data.MonetizationConfig
 import com.buildmyvpn.data.MonetizationManager
 import com.buildmyvpn.data.ServerRepository
+import com.buildmyvpn.data.UpdateInfo
+import com.buildmyvpn.data.UpdateManager
 import com.buildmyvpn.data.model.ActiveTransport
 import com.buildmyvpn.data.model.DeployedProtocolMode
 import com.buildmyvpn.data.model.ProxyMode
@@ -51,6 +53,15 @@ data class DeployUiState(
     val errorMessage: String? = null
 )
 
+data class UpdateUiState(
+    val checking: Boolean = false,
+    val downloading: Boolean = false,
+    val downloadPct: Int = 0,
+    val bannerDismissed: Boolean = false,
+    val info: UpdateInfo? = null,
+    val statusNote: String? = null
+)
+
 data class MainUiState(
     val persisted: AppPersistedState = AppPersistedState(),
     val monetization: MonetizationConfig = MonetizationConfig(),
@@ -63,7 +74,8 @@ data class MainUiState(
     val deployState: DeployUiState = DeployUiState(),
     val pendingHostKey: PendingHostKeyPrompt? = null,
     val ruleUpdateMessage: String? = null,
-    val ruleUpdating: Boolean = false
+    val ruleUpdating: Boolean = false,
+    val updateState: UpdateUiState = UpdateUiState()
 ) {
     val selectedServer: ServerProfile?
         get() = persisted.servers.firstOrNull { it.id == persisted.selectedServerId }
@@ -82,6 +94,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _ruleUpdateMessage = MutableStateFlow<String?>(null)
     private val _ruleUpdating = MutableStateFlow(false)
     private val _serverOnlineMap = MutableStateFlow<Map<String, OnlineStatus>>(emptyMap())
+    private val _updateState = MutableStateFlow(UpdateUiState())
 
     private val vpnFlow = combine(
         BuildMyVpnService.state,
@@ -107,8 +120,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         repository.state,
         monetizationManager.config,
         vpnFlow,
-        opsFlow
-    ) { persisted, monetization, vpn, ops ->
+        opsFlow,
+        _updateState
+    ) { persisted, monetization, vpn, ops, upd ->
         MainUiState(
             persisted = persisted,
             monetization = monetization,
@@ -121,7 +135,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             deployState = ops.deploy,
             pendingHostKey = ops.hostKey,
             ruleUpdateMessage = ops.ruleMsg,
-            ruleUpdating = ops.ruleBusy
+            ruleUpdating = ops.ruleBusy,
+            updateState = upd
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MainUiState())
 
@@ -149,6 +164,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             monetizationManager.loadAndRefresh()
+        }
+        viewModelScope.launch {
+            checkForUpdates(manual = false)
         }
     }
 
@@ -363,6 +381,62 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
             _ruleUpdating.value = false
+        }
+    }
+
+    fun checkForUpdates(manual: Boolean = true) {
+        val cur = _updateState.value
+        if (cur.checking || cur.downloading) return
+        viewModelScope.launch {
+            val currentVer = UpdateManager.getCurrentVersion(getApplication())
+            _updateState.update {
+                it.copy(
+                    checking = true,
+                    statusNote = if (manual) "Checking..." else it.statusNote
+                )
+            }
+            val info = UpdateManager.checkForUpdate(currentVer)
+            _updateState.update {
+                it.copy(
+                    checking = false,
+                    info = info,
+                    bannerDismissed = if (manual && info.hasUpdate) false else it.bannerDismissed,
+                    statusNote = when {
+                        info.error != null -> if (manual) info.error else null
+                        info.hasUpdate -> "v${info.latestVersion} available (current v$currentVer)"
+                        manual -> "Up to date (v$currentVer)"
+                        else -> null
+                    }
+                )
+            }
+        }
+    }
+
+    fun dismissUpdateBanner() {
+        _updateState.update { it.copy(bannerDismissed = true) }
+    }
+
+    fun downloadAndInstallUpdate(onFallbackBrowser: (String) -> Unit) {
+        val st = _updateState.value
+        val info = st.info ?: return
+        if (!info.hasUpdate || st.downloading) return
+        if (info.downloadUrl.isBlank()) {
+            onFallbackBrowser(info.releaseUrl)
+            return
+        }
+        viewModelScope.launch {
+            val ctx = getApplication<Application>()
+            _updateState.update { it.copy(downloading = true, downloadPct = 5, statusNote = "Downloading v${info.latestVersion}...") }
+            runCatching {
+                val apkFile = UpdateManager.downloadApk(ctx, info.downloadUrl) { pct ->
+                    _updateState.update { it.copy(downloadPct = pct, statusNote = "Downloading $pct%...") }
+                }
+                _updateState.update { it.copy(downloading = false, downloadPct = 100, statusNote = "Opening installer...") }
+                UpdateManager.launchApkInstaller(ctx, apkFile)
+            }.onFailure { ex ->
+                _updateState.update { it.copy(downloading = false, statusNote = ex.message ?: "Download failed") }
+                onFallbackBrowser(info.downloadUrl)
+            }
         }
     }
 }

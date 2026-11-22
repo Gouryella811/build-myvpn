@@ -5,6 +5,7 @@ mod ssh_deploy;
 mod storage;
 mod sysproxy;
 mod telemetry;
+mod updater;
 
 use futures_util::StreamExt;
 use models::{
@@ -483,6 +484,30 @@ async fn get_monetization_config() -> Result<Value, String> {
 }
 
 #[tauri::command]
+async fn check_for_update() -> Result<updater::UpdateCheckResult, String> {
+    Ok(updater::check_for_update().await)
+}
+
+#[tauri::command]
+async fn download_and_install_update(
+    app: AppHandle,
+    state: State<'_, Arc<AppState>>,
+    url: String,
+    asset_name: String,
+) -> Result<String, String> {
+    // Cleanly disconnect VPN before launching Windows installer so files aren't locked
+    #[cfg(target_os = "windows")]
+    {
+        if state.vpn.lock().await.connected {
+            disconnect_internal(app.clone(), state.inner().clone()).await;
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    let _ = &state;
+    updater::download_and_launch_update(&app, &url, &asset_name).await
+}
+
+#[tauri::command]
 fn open_external_url(url: String) -> Result<(), String> {
     if !(url.starts_with("https://") || url.starts_with("http://") || url.starts_with("mailto:")) {
         return Err("Unsupported URL scheme".to_string());
@@ -626,6 +651,8 @@ pub fn run() {
             update_routing_rules,
             get_diagnostics_logs,
             get_monetization_config,
+            check_for_update,
+            download_and_install_update,
             open_external_url
         ])
         .build(tauri::generate_context!())

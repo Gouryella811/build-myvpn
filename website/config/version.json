@@ -1,0 +1,12 @@
+{
+  "version": "1.1.2",
+  "tag": "v1.1.2",
+  "release_url": "https://github.com/Gouryella811/build-myvpn/releases/tag/v1.1.2",
+  "notes": "Auto-update checker & one-click manual update across Android, macOS, and Windows.",
+  "assets": {
+    "android": "https://github.com/Gouryella811/build-myvpn/releases/download/v1.1.2/Build-MyVpn-v1.1.2-android.apk",
+    "macos": "https://github.com/Gouryella811/build-myvpn/releases/download/v1.1.2/Build-MyVpn-v1.1.2-macos-universal.dmg",
+    "windows_setup": "https://github.com/Gouryella811/build-myvpn/releases/download/v1.1.2/Build-MyVpn-v1.1.2-windows-x64-setup.exe",
+    "windows_portable": "https://github.com/Gouryella811/build-myvpn/releases/download/v1.1.2/Build-MyVpn-v1.1.2-windows-x64-portable.zip"
+  }
+}

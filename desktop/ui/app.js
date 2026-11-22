@@ -29,7 +29,9 @@
     },
     statusMap: {},
     monetizationUrl: "https://build-myvpn.pages.dev/#sponsor",
-    pendingDeployReq: null
+    pendingDeployReq: null,
+    updateInfo: null,
+    updatingNow: false
   };
 
   let dict = window.BMV_I18N.getDict("en");
@@ -547,6 +549,79 @@
     });
     $("refreshLogsBtn").addEventListener("click", refreshLogs);
 
+    async function runUpdateCheck(manual) {
+      if (!invoke || state.updatingNow) return;
+      const btn = $("checkUpdateBtn");
+      const statusEl = $("updateStatusText");
+      if (manual) {
+        btn.disabled = true;
+        statusEl.textContent = dict.update_checking || "Checking for updates...";
+      }
+      try {
+        const res = await invoke("check_for_update");
+        state.updateInfo = res;
+        if (res.error) {
+          if (manual) statusEl.textContent = res.error;
+        } else if (res.has_update) {
+          $("updateBannerTag").textContent = `v${res.latest_version}`;
+          $("updateBannerText").textContent = `${dict.update_avail || "New version available"}: v${res.latest_version}`;
+          $("updateBanner").classList.add("show");
+          $("installUpdateBtn").style.display = "inline-flex";
+          statusEl.textContent = `${dict.update_avail || "New version available"}: v${res.latest_version} (current v${res.current_version})`;
+        } else {
+          $("updateBanner").classList.remove("show");
+          $("installUpdateBtn").style.display = "none";
+          if (manual) {
+            statusEl.textContent = `${dict.update_latest || "Latest version"} (v${res.current_version})`;
+          }
+        }
+      } catch (err) {
+        if (manual) statusEl.textContent = String(err);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function startDownloadUpdate() {
+      const info = state.updateInfo;
+      if (!info || !info.has_update || state.updatingNow) return;
+      if (!info.download_url) {
+        await invoke("open_external_url", { url: info.release_url || "https://github.com/Gouryella811/build-myvpn/releases/latest" });
+        return;
+      }
+      state.updatingNow = true;
+      $("bannerUpdateBtn").disabled = true;
+      $("installUpdateBtn").disabled = true;
+      $("checkUpdateBtn").disabled = true;
+      switchView("settings");
+      $("updateProgressWrap").classList.add("show");
+      $("updateProgressBar").style.width = "5%";
+      $("updateProgressMsg").textContent = dict.update_downloading || "Downloading update...";
+      try {
+        await invoke("download_and_install_update", {
+          url: info.download_url,
+          assetName: info.asset_name || ""
+        });
+        $("updateProgressBar").style.width = "100%";
+        $("updateProgressMsg").textContent = dict.update_opening || "Installer opened";
+        $("updateBanner").classList.remove("show");
+      } catch (err) {
+        $("updateProgressMsg").textContent = `${err}`;
+        // Fallback: let user download via browser if direct download failed
+        await invoke("open_external_url", { url: info.download_url }).catch(() => {});
+      } finally {
+        state.updatingNow = false;
+        $("bannerUpdateBtn").disabled = false;
+        $("installUpdateBtn").disabled = false;
+        $("checkUpdateBtn").disabled = false;
+      }
+    }
+
+    $("checkUpdateBtn").addEventListener("click", () => runUpdateCheck(true));
+    $("installUpdateBtn").addEventListener("click", startDownloadUpdate);
+    $("bannerUpdateBtn").addEventListener("click", startDownloadUpdate);
+    $("bannerLaterBtn").addEventListener("click", () => $("updateBanner").classList.remove("show"));
+
     // External links
     $("openWebBtn").addEventListener("click", () =>
       invoke("open_external_url", { url: "https://build-myvpn.pages.dev" })
@@ -573,6 +648,15 @@
         $("deployProgressBar").style.width = `${p.pct || 20}%`;
         $("deployProgressMsg").textContent = p.message || p.step;
       });
+      await listen("update-download-progress", (event) => {
+        const p = event.payload;
+        $("updateProgressWrap").classList.add("show");
+        $("updateProgressBar").style.width = `${p.pct || 0}%`;
+        $("updateProgressMsg").textContent =
+          p.status === "launching"
+            ? dict.update_opening || "Launching installer..."
+            : `${dict.update_downloading || "Downloading"} ${p.pct || 0}% (${fmtBytes(p.downloaded_bytes)})`;
+      });
     }
 
     // Bootstrap state from Rust backend
@@ -594,6 +678,9 @@
       renderConnect();
       renderServers();
       checkServers();
+
+      // Silent auto-check for app updates 2 seconds after launch
+      setTimeout(() => runUpdateCheck(false), 2000);
 
       // Load remote sponsor config
       invoke("get_monetization_config")

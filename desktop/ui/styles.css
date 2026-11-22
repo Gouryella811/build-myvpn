@@ -461,6 +461,22 @@ select:focus, input:focus, textarea:focus { border-color: var(--accent); }
   user-select: text;
 }
 
+/* Update Banner */
+.update-banner {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px;
+  background: var(--accent-soft);
+  border-bottom: 1px solid var(--accent);
+  font-size: 12.5px;
+}
+.update-banner.show { display: flex; }
+.update-banner-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.update-banner-title { font-weight: 600; color: var(--text); }
+.update-banner-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
 /* Bottom Sponsor Bar */
 .sponsor-bar {
   border-top: 1px solid var(--border);

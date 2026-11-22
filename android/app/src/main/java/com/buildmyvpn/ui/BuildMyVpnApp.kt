@@ -86,6 +86,7 @@ import androidx.core.os.LocaleListCompat
 import com.buildmyvpn.R
 import com.buildmyvpn.data.BannerSlot
 import com.buildmyvpn.data.DonationConfig
+import com.buildmyvpn.data.UpdateManager
 import com.buildmyvpn.data.model.ActiveTransport
 import com.buildmyvpn.data.model.DeployedProtocolMode
 import com.buildmyvpn.data.model.ProxyMode
@@ -206,51 +207,101 @@ fun BuildMyVpnApp(
                 }
             }
         ) { padding ->
-            Box(Modifier.fillMaxSize().padding(padding)) {
-                when (tab) {
-                    0 -> ConnectView(
-                        state = state,
-                        onToggleConnect = {
-                            if (state.vpnState == VpnState.DISCONNECTED) {
-                                if (state.selectedServer == null) {
-                                    tab = 1
-                                    showAddDialog = true
-                                } else {
-                                    onRequestConnect()
-                                }
-                            } else {
-                                viewModel.stopVpn()
-                            }
-                        },
-                        onRefreshDelay = { viewModel.refreshDelay() },
-                        onSelectProxyMode = { viewModel.setProxyMode(it) },
-                        onOpenRulePicker = { showRuleDialog = true },
-                        onOpenServers = {
-                            tab = 1
-                            if (state.selectedServer == null) showAddDialog = true
+            Column(Modifier.fillMaxSize().padding(padding)) {
+                // Slim Auto-Update Banner (identical to macOS / Windows)
+                val updInfo = state.updateState.info
+                if (updInfo != null && updInfo.hasUpdate && !state.updateState.bannerDismissed) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(c.accentSoft)
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            BmvBadge("v${updInfo.latestVersion}", c.accent, Color.White)
+                            Text(
+                                text = "Update Available",
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = c.text,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
-                    )
-                    1 -> ServersView(
-                        servers = state.persisted.servers,
-                        selectedId = state.selectedServer?.id,
-                        onlineMap = state.serverOnlineMap,
-                        onSelect = { viewModel.selectServer(it) },
-                        onEdit = { editingServer = it },
-                        onRefresh = { viewModel.refreshServersStatusAndRegions() },
-                        onAdd = { showAddDialog = true }
-                    )
-                    2 -> SettingsView(
-                        state = state,
-                        themeMode = themeMode,
-                        onCycleTheme = {
-                            val next = themeMode.next()
-                            themeMode = next
-                            ThemeMode.save(ctx, next)
-                        },
-                        onOpenLanguage = { showLangDialog = true },
-                        onUpdateRules = { viewModel.updateRulesNow() },
-                        onOpenDonate = { showDonateDialog = true }
-                    )
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Button(
+                                onClick = {
+                                    tab = 2
+                                    viewModel.downloadAndInstallUpdate { url -> openUrl(ctx, url) }
+                                },
+                                enabled = !state.updateState.downloading,
+                                shape = RoundedCornerShape(7.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = c.accent, contentColor = Color.White)
+                            ) { Text("Update", fontSize = 11.5.sp) }
+                            TextButton(
+                                onClick = { viewModel.dismissUpdateBanner() },
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)
+                            ) { Text("×", fontSize = 14.sp, color = c.muted) }
+                        }
+                    }
+                    HorizontalDivider(color = c.accent, thickness = 1.dp)
+                }
+
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    when (tab) {
+                        0 -> ConnectView(
+                            state = state,
+                            onToggleConnect = {
+                                if (state.vpnState == VpnState.DISCONNECTED) {
+                                    if (state.selectedServer == null) {
+                                        tab = 1
+                                        showAddDialog = true
+                                    } else {
+                                        onRequestConnect()
+                                    }
+                                } else {
+                                    viewModel.stopVpn()
+                                }
+                            },
+                            onRefreshDelay = { viewModel.refreshDelay() },
+                            onSelectProxyMode = { viewModel.setProxyMode(it) },
+                            onOpenRulePicker = { showRuleDialog = true },
+                            onOpenServers = {
+                                tab = 1
+                                if (state.selectedServer == null) showAddDialog = true
+                            }
+                        )
+                        1 -> ServersView(
+                            servers = state.persisted.servers,
+                            selectedId = state.selectedServer?.id,
+                            onlineMap = state.serverOnlineMap,
+                            onSelect = { viewModel.selectServer(it) },
+                            onEdit = { editingServer = it },
+                            onRefresh = { viewModel.refreshServersStatusAndRegions() },
+                            onAdd = { showAddDialog = true }
+                        )
+                        2 -> SettingsView(
+                            state = state,
+                            themeMode = themeMode,
+                            onCycleTheme = {
+                                val next = themeMode.next()
+                                themeMode = next
+                                ThemeMode.save(ctx, next)
+                            },
+                            onOpenLanguage = { showLangDialog = true },
+                            onUpdateRules = { viewModel.updateRulesNow() },
+                            onCheckUpdate = { viewModel.checkForUpdates(manual = true) },
+                            onInstallUpdate = { viewModel.downloadAndInstallUpdate { url -> openUrl(ctx, url) } },
+                            onOpenDonate = { showDonateDialog = true }
+                        )
+                    }
                 }
             }
         }
@@ -806,11 +857,14 @@ private fun SettingsView(
     onCycleTheme: () -> Unit,
     onOpenLanguage: () -> Unit,
     onUpdateRules: () -> Unit,
+    onCheckUpdate: () -> Unit,
+    onInstallUpdate: () -> Unit,
     onOpenDonate: () -> Unit
 ) {
     val c = LocalBmvColors.current
     val ctx = LocalContext.current
     val copied = stringResource(R.string.copied_toast)
+    val appVer = remember { UpdateManager.getCurrentVersion(ctx) }
     var showLogs by remember { mutableStateOf(false) }
 
     Column(
@@ -838,6 +892,52 @@ private fun SettingsView(
                 trailing = if (state.ruleUpdating) "..." else "↓",
                 onClick = if (state.ruleUpdating) null else onUpdateRules
             )
+            HorizontalDivider(color = c.border)
+            // Software Update row (auto-check on startup + manual check + in-app download progress)
+            val upd = state.updateState
+            val hasNew = upd.info?.hasUpdate == true
+            Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Software Update", fontWeight = FontWeight.SemiBold, fontSize = 13.5.sp, color = c.text)
+                        Text(
+                            text = upd.statusNote ?: "v$appVer · Auto-check enabled",
+                            fontSize = 12.sp,
+                            color = if (hasNew) c.accent else c.muted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (hasNew) {
+                            Button(
+                                onClick = onInstallUpdate,
+                                enabled = !upd.downloading,
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = c.accent, contentColor = Color.White)
+                            ) { Text("Update", fontSize = 12.sp) }
+                        }
+                        OutlinedButton(
+                            onClick = onCheckUpdate,
+                            enabled = !upd.checking && !upd.downloading,
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp)
+                        ) { Text(if (upd.checking) "..." else "Check", fontSize = 12.sp) }
+                    }
+                }
+                if (upd.downloading) {
+                    LinearProgressIndicator(
+                        progress = { upd.downloadPct / 100f },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = c.accent
+                    )
+                }
+            }
             HorizontalDivider(color = c.border)
             SettingRow(stringResource(R.string.support_developer), stringResource(R.string.donate_voluntary_note), "♡", onOpenDonate)
         }
@@ -883,7 +983,7 @@ private fun SettingsView(
         // About & Links
         BmvCard(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Build MyVpn v1.1.1", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = c.text)
+                Text("Build MyVpn v$appVer", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = c.text)
                 Text(stringResource(R.string.settings_privacy_note), fontSize = 12.sp, color = c.muted)
                 Text(stringResource(R.string.settings_license_note), fontSize = 12.sp, color = c.muted)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
