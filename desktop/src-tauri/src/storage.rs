@@ -7,9 +7,9 @@ use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use rand::RngCore;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
-const KEYRING_SERVICE: &str = "com.buildmyvpn.desktop";
-const KEYRING_USER: &str = "profiles_aes256_key_v1";
+static CACHED_MASTER_KEY: OnceLock<[u8; 32]> = OnceLock::new();
 
 pub fn app_data_dir() -> PathBuf {
     let base = dirs::data_local_dir().unwrap_or_else(|| PathBuf::from("."));
@@ -18,36 +18,25 @@ pub fn app_data_dir() -> PathBuf {
     dir
 }
 
+/// Loads or generates the local 256-bit AES-GCM master key (0600 owner-only) and caches it in RAM.
+/// Avoids macOS Login Keychain ACL password popups on ad-hoc signed builds across upgrades.
 fn get_or_create_master_key() -> Result<[u8; 32], String> {
-    // 1. Prefer native OS Keychain (macOS) / Credential Manager (Windows)
-    if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER) {
-        if let Ok(b64) = entry.get_password() {
-            if let Ok(raw) = B64.decode(b64.trim()) {
-                if raw.len() == 32 {
-                    let mut key = [0u8; 32];
-                    key.copy_from_slice(&raw);
-                    return Ok(key);
-                }
-            }
-        }
-        let mut key = [0u8; 32];
-        rand::thread_rng().fill_bytes(&mut key);
-        if entry.set_password(&B64.encode(key)).is_ok() {
-            return Ok(key);
-        }
+    if let Some(key) = CACHED_MASTER_KEY.get() {
+        return Ok(*key);
     }
 
-    // 2. Fallback to restricted local key file inside app data dir
     let key_path = app_data_dir().join(".master.key");
     if let Ok(text) = fs::read_to_string(&key_path) {
         if let Ok(raw) = B64.decode(text.trim()) {
             if raw.len() == 32 {
                 let mut key = [0u8; 32];
                 key.copy_from_slice(&raw);
+                let _ = CACHED_MASTER_KEY.set(key);
                 return Ok(key);
             }
         }
     }
+
     let mut key = [0u8; 32];
     rand::thread_rng().fill_bytes(&mut key);
     fs::write(&key_path, B64.encode(key)).map_err(|e| format!("Failed saving local key: {e}"))?;
@@ -56,6 +45,7 @@ fn get_or_create_master_key() -> Result<[u8; 32], String> {
         use std::os::unix::fs::PermissionsExt;
         let _ = fs::set_permissions(&key_path, fs::Permissions::from_mode(0o600));
     }
+    let _ = CACHED_MASTER_KEY.set(key);
     Ok(key)
 }
 
