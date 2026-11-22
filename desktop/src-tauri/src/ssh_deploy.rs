@@ -173,18 +173,7 @@ pub async fn run_ssh_deploy(app: &AppHandle, req: DeployRequest) -> DeployResult
             .ok()
             .flatten()
             .flatten();
-        let auth_key = match PrivateKeyWithHashAlg::new(Arc::new(key_pair), hash_alg) {
-            Ok(k) => k,
-            Err(e) => {
-                return DeployResult {
-                    status: "error".to_string(),
-                    fingerprint: Some(verified_fp),
-                    profile: None,
-                    code: Some("ERR_AUTH_FAILED".to_string()),
-                    message: format!("SSH key setup failed: {e}"),
-                };
-            }
-        };
+        let auth_key = PrivateKeyWithHashAlg::new(Arc::new(key_pair), hash_alg);
         match session.authenticate_publickey(&username, auth_key).await {
             Ok(res) => res.success(),
             Err(e) => {

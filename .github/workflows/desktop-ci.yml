@@ -42,11 +42,13 @@ jobs:
           curl -fsSL "https://github.com/SagerNet/sing-box/releases/download/v${SINGBOX_VERSION}/sing-box-${SINGBOX_VERSION}-darwin-amd64.tar.gz" -o /tmp/sb/amd64.tar.gz
           tar -xzf /tmp/sb/arm64.tar.gz -C /tmp/sb
           tar -xzf /tmp/sb/amd64.tar.gz -C /tmp/sb
+          cp "/tmp/sb/sing-box-${SINGBOX_VERSION}-darwin-arm64/sing-box" desktop/src-tauri/binaries/sing-box-aarch64-apple-darwin
+          cp "/tmp/sb/sing-box-${SINGBOX_VERSION}-darwin-amd64/sing-box" desktop/src-tauri/binaries/sing-box-x86_64-apple-darwin
           lipo -create \
             "/tmp/sb/sing-box-${SINGBOX_VERSION}-darwin-arm64/sing-box" \
             "/tmp/sb/sing-box-${SINGBOX_VERSION}-darwin-amd64/sing-box" \
             -output desktop/src-tauri/binaries/sing-box-universal-apple-darwin
-          chmod +x desktop/src-tauri/binaries/sing-box-universal-apple-darwin
+          chmod +x desktop/src-tauri/binaries/sing-box-*
           file desktop/src-tauri/binaries/sing-box-universal-apple-darwin
 
       - name: Run Rust unit tests
