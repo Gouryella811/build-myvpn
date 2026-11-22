@@ -1,0 +1,56 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Build MyVpn",
+  "version": "1.1.0",
+  "identifier": "com.buildmyvpn.desktop",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Build MyVpn",
+        "width": 940,
+        "height": 650,
+        "minWidth": 760,
+        "minHeight": 560,
+        "resizable": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://build-myvpn.pages.dev https://raw.githubusercontent.com https://github.com https://ipwho.is http://127.0.0.1:19090"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Utility",
+    "shortDescription": "Turn your own VPS into a private VPN in one tap.",
+    "copyright": "Copyright (c) Build MyVpn Contributors. Licensed under GPL-3.0-or-later.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": [
+      "binaries/sing-box"
+    ],
+    "resources": [
+      "resources/install_singbox.sh"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false
+      }
+    }
+  }
+}

@@ -91,7 +91,7 @@ jobs:
           APK_SRC="$(ls android/app/build/outputs/apk/debug/*.apk | head -n1)"
           APK_OUT="Build-MyVpn-${TAG}-android.apk"
           cp "$APK_SRC" "$APK_OUT"
-          sha256sum "$APK_OUT" > SHA256SUMS.txt
+          sha256sum "$APK_OUT" > SHA256SUMS-android.txt
         shell: bash
 
       - name: Create GitHub Release
@@ -100,6 +100,6 @@ jobs:
         with:
           files: |
             Build-MyVpn-*-android.apk
-            SHA256SUMS.txt
+            SHA256SUMS-android.txt
           generate_release_notes: true
           make_latest: true

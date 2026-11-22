@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Build MyVpn</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="logo.png" alt="Build MyVpn" />
+        <div>
+          <div class="brand-title">Build <span>MyVpn</span></div>
+          <div class="brand-ver" id="appVer">v1.1.0</div>
+        </div>
+      </div>
+
+      <nav class="nav-list">
+        <button class="nav-item active" data-view="connect">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          <span data-i18n="nav_connect">Connect</span>
+        </button>
+        <button class="nav-item" data-view="servers">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="7" rx="2"/><rect x="2" y="14" width="20" height="7" rx="2"/><line x1="6" y1="6.5" x2="6.01" y2="6.5"/><line x1="6" y1="17.5" x2="6.01" y2="17.5"/></svg>
+          <span data-i18n="nav_servers">Servers</span>
+        </button>
+        <button class="nav-item" data-view="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.85 1 1.51 1H21a2 2 0 0 1 0 4h-.09c-.66 0-1.25.4-1.51 1z"/></svg>
+          <span data-i18n="nav_settings">Settings</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="status-pill">
+          <span class="dot" id="sideDot"></span>
+          <span id="sideStatus" data-i18n="status_disconnected">Not Connected</span>
+        </div>
+        <button class="icon-btn" id="quickThemeBtn" title="Toggle Theme">◐</button>
+      </div>
+    </aside>
+
+    <!-- Main Area -->
+    <main class="main-area">
+      <div class="view-scroll">
+        <!-- CONNECT VIEW -->
+        <section class="view active" id="view-connect">
+          <div class="active-node-bar" id="activeNodeBar">
+            <div class="node-meta">
+              <span class="node-flag" id="activeFlag">🌐</span>
+              <div>
+                <div class="node-title" id="activeName" data-i18n="no_server">No VPS added yet</div>
+                <div class="node-sub" id="activeSub" data-i18n="no_server_sub">Click here to deploy your own VPS in one tap</div>
+              </div>
+            </div>
+            <span class="badge badge-blue" id="activeProtoBadge">REALITY</span>
+          </div>
+
+          <div class="power-stage">
+            <button class="power-btn" id="powerBtn" aria-label="Connect">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+            </button>
+            <div class="power-state-label" id="powerLabel" data-i18n="status_disconnected">Not Connected</div>
+            <div class="power-hint" id="powerHint" data-i18n="tap_to_connect">Click to connect to your private VPS</div>
+            <div class="error-banner" id="errorBanner"></div>
+          </div>
+
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-label" data-i18n="metric_down">Download</div>
+              <div class="metric-val" id="speedDown">0 B/s</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label" data-i18n="metric_up">Upload</div>
+              <div class="metric-val" id="speedUp">0 B/s</div>
+            </div>
+            <div class="metric-card metric-action" id="delayCard">
+              <div class="metric-label" data-i18n="metric_delay">Latency (Test)</div>
+              <div class="metric-val" id="delayVal">-- ms</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label" data-i18n="metric_session">Session</div>
+              <div class="metric-val" id="sessionTraffic">0 B</div>
+            </div>
+          </div>
+
+          <div class="quick-controls">
+            <div class="ctrl-card">
+              <div>
+                <div class="ctrl-title" data-i18n="proxy_mode">Proxy Mode</div>
+                <div class="ctrl-sub" data-i18n="proxy_mode_sub">System Proxy needs no admin prompt</div>
+              </div>
+              <select id="proxyModeSelect">
+                <option value="system_proxy" data-i18n="mode_sysproxy">System Proxy</option>
+                <option value="tun" data-i18n="mode_tun">TUN Global (Admin)</option>
+              </select>
+            </div>
+            <div class="ctrl-card">
+              <div>
+                <div class="ctrl-title" data-i18n="routing_mode">Smart Routing</div>
+                <div class="ctrl-sub" data-i18n="routing_mode_sub">Bypass local sites automatically</div>
+              </div>
+              <select id="routingModeSelect">
+                <option value="auto_cn" data-i18n="route_cn">Auto (China)</option>
+                <option value="auto_ir" data-i18n="route_ir">Auto (Iran)</option>
+                <option value="auto_ru" data-i18n="route_ru">Auto (Russia)</option>
+                <option value="global" data-i18n="route_global">Global Proxy</option>
+                <option value="direct" data-i18n="route_direct">Direct</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <!-- SERVERS VIEW -->
+        <section class="view" id="view-servers">
+          <div class="view-header">
+            <h2 data-i18n="servers_title">My VPS Servers</h2>
+            <div class="btn-row">
+              <button class="btn" id="refreshServersBtn" data-i18n="btn_refresh">Check Status</button>
+              <button class="btn btn-primary" id="openAddModalBtn" data-i18n="btn_add_vps">+ Add VPS</button>
+            </div>
+          </div>
+          <div class="server-list" id="serverList"></div>
+        </section>
+
+        <!-- SETTINGS VIEW -->
+        <section class="view" id="view-settings">
+          <div class="view-header">
+            <h2 data-i18n="settings_title">Settings</h2>
+          </div>
+
+          <div class="settings-group">
+            <div class="setting-row">
+              <div>
+                <div class="setting-label" data-i18n="set_lang">Language</div>
+                <div class="setting-desc" data-i18n="set_lang_desc">17 languages built in</div>
+              </div>
+              <select id="langSelect"></select>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label" data-i18n="set_theme">Appearance</div>
+                <div class="setting-desc" data-i18n="set_theme_desc">Auto switches by local time</div>
+              </div>
+              <select id="themeSelect">
+                <option value="auto" data-i18n="theme_auto">Auto (Time)</option>
+                <option value="light" data-i18n="theme_light">Light</option>
+                <option value="dark" data-i18n="theme_dark">Dark</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label" data-i18n="set_port">Local Proxy Port</div>
+                <div class="setting-desc" data-i18n="set_port_desc">HTTP &amp; SOCKS5 mixed port</div>
+              </div>
+              <input type="number" id="localPortInput" min="1024" max="65535" value="20808" style="width: 100px;" />
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label" data-i18n="set_tray">Minimize to System Tray</div>
+                <div class="setting-desc" data-i18n="set_tray_desc">Keep running when window closes</div>
+              </div>
+              <input type="checkbox" id="minimizeTrayChk" checked />
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label" data-i18n="set_rules">Routing Rules (.srs)</div>
+                <div class="setting-desc" id="rulesStatusText" data-i18n="set_rules_desc">Download latest validated CN / IR / RU rules</div>
+              </div>
+              <button class="btn btn-sm" id="updateRulesBtn" data-i18n="btn_update_rules">Update Rules</button>
+            </div>
+          </div>
+
+          <div class="settings-group" style="padding: 14px 16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <div class="setting-label" data-i18n="diag_title">Core Logs (sing-box)</div>
+              <button class="btn btn-sm" id="refreshLogsBtn" data-i18n="btn_refresh_logs">Refresh Logs</button>
+            </div>
+            <div class="logs-box" id="logsBox">No logs yet.</div>
+          </div>
+
+          <div class="settings-group">
+            <div class="setting-row">
+              <div>
+                <div class="setting-label" data-i18n="about_title">About Build MyVpn</div>
+                <div class="setting-desc" id="aboutMeta" data-i18n="about_desc">Free, open-source GPLv3+ self-hosted VPS client</div>
+              </div>
+              <div class="btn-row">
+                <button class="btn btn-sm" id="openWebBtn" data-i18n="btn_website">Website</button>
+                <button class="btn btn-sm" id="openGhBtn" data-i18n="btn_github">GitHub</button>
+                <button class="btn btn-sm" id="openPrivacyBtn" data-i18n="btn_privacy">Privacy</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Fixed Slim Sponsor Banner -->
+      <div class="sponsor-bar" id="sponsorBar">
+        <div class="sponsor-left">
+          <span class="ad-tag" id="sponsorBadge">AD</span>
+          <div style="min-width:0;">
+            <div class="sponsor-title" id="sponsorTitle">Build MyVpn Official Sponsor Slot</div>
+            <div class="sponsor-sub" id="sponsorSub">Partner with Build MyVpn</div>
+          </div>
+        </div>
+        <span style="color:var(--accent);font-weight:700;">→</span>
+      </div>
+    </main>
+  </div>
+
+  <!-- Add / Deploy VPS Modal -->
+  <div class="modal-backdrop" id="deployModal">
+    <div class="modal-card">
+      <div class="modal-title" data-i18n="modal_add_title">Add &amp; Auto-Deploy VPS</div>
+      <div class="security-note" data-i18n="security_note">
+        Security: SSH credentials stay in memory only during deployment and are immediately erased.
+      </div>
+      <div class="form-grid">
+        <div class="form-field full">
+          <label data-i18n="label_name">Server Name (optional)</label>
+          <input type="text" id="inName" placeholder="e.g. Tokyo VPS" />
+        </div>
+        <div class="form-field">
+          <label data-i18n="label_host">VPS IP or Domain</label>
+          <input type="text" id="inHost" placeholder="203.0.113.10" />
+        </div>
+        <div class="form-field">
+          <label data-i18n="label_ssh_port">SSH Port</label>
+          <input type="number" id="inPort" value="22" min="1" max="65535" />
+        </div>
+        <div class="form-field">
+          <label data-i18n="label_user">SSH Username</label>
+          <input type="text" id="inUser" value="root" />
+        </div>
+        <div class="form-field">
+          <label data-i18n="label_auth">Authentication</label>
+          <select id="inAuthType">
+            <option value="password" data-i18n="auth_password">SSH Password</option>
+            <option value="key" data-i18n="auth_key">Private Key (PEM)</option>
+          </select>
+        </div>
+        <div class="form-field full" id="passField">
+          <label data-i18n="label_pass">SSH Password</label>
+          <input type="password" id="inPass" placeholder="••••••••" autocomplete="off" />
+        </div>
+        <div class="form-field full" id="keyField" style="display:none;">
+          <label data-i18n="label_key">Private Key Content</label>
+          <textarea id="inKey" rows="3" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
+        </div>
+        <div class="form-field full">
+          <label data-i18n="label_protocol">Protocol</label>
+          <select id="inProto">
+            <option value="reality" data-i18n="proto_reality">VLESS + REALITY (TCP 443 · Recommended)</option>
+            <option value="dual" data-i18n="proto_dual">Dual: REALITY + Hysteria2 (UDP 443)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="warning-box" id="hy2WarnBox">
+        <div data-i18n="hy2_warn">High blocking risk: UDP-based Hysteria2 is easier to throttle or block on strict networks.</div>
+        <label>
+          <input type="checkbox" id="hy2RiskChk" />
+          <span data-i18n="hy2_confirm">I understand the blocking risk.</span>
+        </label>
+      </div>
+
+      <div class="progress-wrap" id="deployProgressWrap">
+        <div class="progress-track"><div class="progress-fill" id="deployProgressBar"></div></div>
+        <div class="progress-msg" id="deployProgressMsg">Preparing...</div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" id="cancelDeployBtn" data-i18n="btn_cancel">Cancel</button>
+        <button class="btn btn-primary" id="startDeployBtn" data-i18n="btn_deploy">Deploy Now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOFU Fingerprint Confirm Modal -->
+  <div class="modal-backdrop" id="tofuModal">
+    <div class="modal-card" style="max-width:440px;">
+      <div class="modal-title" data-i18n="tofu_title">Verify SSH Host Key Fingerprint</div>
+      <p style="font-size:13px;color:var(--muted);" data-i18n="tofu_desc">First time connecting to this VPS. Confirm the SHA-256 fingerprint:</p>
+      <div class="fp-code" id="tofuFingerprint">SHA256:...</div>
+      <div class="modal-actions">
+        <button class="btn" id="tofuCancelBtn" data-i18n="btn_cancel">Cancel</button>
+        <button class="btn btn-primary" id="tofuTrustBtn" data-i18n="tofu_trust">Trust &amp; Deploy</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="i18n.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

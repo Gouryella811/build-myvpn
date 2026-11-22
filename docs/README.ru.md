@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="../assets/brand/icon-rounded-1024.png" width="84" height="84" alt="Build MyVpn" />
+
 # Build MyVpn
 
 **Превратите ваш собственный VPS в личный VPN в одно касание.**

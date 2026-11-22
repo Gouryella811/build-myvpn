@@ -1,0 +1,177 @@
+name: Build MyVpn Desktop (macOS Universal + Windows x64)
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  SINGBOX_VERSION: "1.12.12"
+  WINTUN_VERSION: "0.14.1"
+
+jobs:
+  macos-universal:
+    name: Build macOS Universal (.dmg)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify desktop deploy script matches canonical script
+        run: diff -u deploy-scripts/install_singbox.sh desktop/src-tauri/resources/install_singbox.sh
+
+      - name: Set up Rust (arm64 + x86_64)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Rust cargo cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri -> target
+
+      - name: Download & lipo universal sing-box v${{ env.SINGBOX_VERSION }}
+        run: |
+          mkdir -p /tmp/sb desktop/src-tauri/binaries
+          curl -fsSL "https://github.com/SagerNet/sing-box/releases/download/v${SINGBOX_VERSION}/sing-box-${SINGBOX_VERSION}-darwin-arm64.tar.gz" -o /tmp/sb/arm64.tar.gz
+          curl -fsSL "https://github.com/SagerNet/sing-box/releases/download/v${SINGBOX_VERSION}/sing-box-${SINGBOX_VERSION}-darwin-amd64.tar.gz" -o /tmp/sb/amd64.tar.gz
+          tar -xzf /tmp/sb/arm64.tar.gz -C /tmp/sb
+          tar -xzf /tmp/sb/amd64.tar.gz -C /tmp/sb
+          lipo -create \
+            "/tmp/sb/sing-box-${SINGBOX_VERSION}-darwin-arm64/sing-box" \
+            "/tmp/sb/sing-box-${SINGBOX_VERSION}-darwin-amd64/sing-box" \
+            -output desktop/src-tauri/binaries/sing-box-universal-apple-darwin
+          chmod +x desktop/src-tauri/binaries/sing-box-universal-apple-darwin
+          file desktop/src-tauri/binaries/sing-box-universal-apple-darwin
+
+      - name: Run Rust unit tests
+        working-directory: desktop/src-tauri
+        run: cargo test
+
+      - name: Install Tauri CLI v2
+        run: npm install -g @tauri-apps/cli@2
+
+      - name: Build macOS Universal .dmg
+        working-directory: desktop/src-tauri
+        env:
+          # Optional Apple Developer signing / notarization secrets (unused when empty)
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: tauri build --target universal-apple-darwin --bundles dmg
+
+      - name: Stage macOS Universal .dmg
+        run: |
+          VER="${GITHUB_REF_NAME:-v1.1.0}"
+          DMG_SRC="$(ls desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg | head -n1)"
+          DMG_OUT="Build-MyVpn-${VER}-macos-universal.dmg"
+          cp "$DMG_SRC" "$DMG_OUT"
+          shasum -a 256 "$DMG_OUT" > SHA256SUMS-macos.txt
+          ls -lh "$DMG_OUT"
+          cat SHA256SUMS-macos.txt
+
+      - name: Upload macOS Universal DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-myvpn-macos-universal-dmg
+          path: |
+            Build-MyVpn-*-macos-universal.dmg
+            SHA256SUMS-macos.txt
+          if-no-files-found: error
+
+      - name: Attach macOS Universal DMG to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Build-MyVpn-*-macos-universal.dmg
+            SHA256SUMS-macos.txt
+          make_latest: true
+
+  windows-x64:
+    name: Build Windows x64 (.exe + portable .zip)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust (x86_64-pc-windows-msvc)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust cargo cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri -> target
+
+      - name: Download official sing-box v${{ env.SINGBOX_VERSION }} & wintun.dll
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path desktop/src-tauri/binaries, $env:TEMP/sb | Out-Null
+          Invoke-WebRequest -Uri "https://github.com/SagerNet/sing-box/releases/download/v$env:SINGBOX_VERSION/sing-box-$env:SINGBOX_VERSION-windows-amd64.zip" -OutFile "$env:TEMP/sb/sb.zip"
+          Expand-Archive -Force -Path "$env:TEMP/sb/sb.zip" -DestinationPath "$env:TEMP/sb"
+          Copy-Item "$env:TEMP/sb/sing-box-$env:SINGBOX_VERSION-windows-amd64/sing-box.exe" "desktop/src-tauri/binaries/sing-box-x86_64-pc-windows-msvc.exe"
+
+          Invoke-WebRequest -Uri "https://www.wintun.net/builds/wintun-$env:WINTUN_VERSION.zip" -OutFile "$env:TEMP/sb/wintun.zip"
+          Expand-Archive -Force -Path "$env:TEMP/sb/wintun.zip" -DestinationPath "$env:TEMP/sb"
+          Copy-Item "$env:TEMP/sb/wintun/bin/amd64/wintun.dll" "desktop/src-tauri/binaries/wintun.dll"
+          Get-ChildItem desktop/src-tauri/binaries
+
+      - name: Run Rust unit tests
+        working-directory: desktop/src-tauri
+        run: cargo test
+
+      - name: Install Tauri CLI v2
+        run: npm install -g @tauri-apps/cli@2
+
+      - name: Build Windows x64 NSIS Installer
+        working-directory: desktop/src-tauri
+        run: tauri build --config tauri.windows.conf.json --bundles nsis
+
+      - name: Stage Windows x64 Setup EXE & Portable ZIP
+        shell: pwsh
+        run: |
+          $ver = if ($env:GITHUB_REF_NAME -and $env:GITHUB_REF_NAME.StartsWith("v")) { $env:GITHUB_REF_NAME } else { "v1.1.0" }
+          $exeSrc = (Get-ChildItem "desktop/src-tauri/target/release/bundle/nsis/*-setup.exe" | Select-Object -First 1).FullName
+          $exeOut = "Build-MyVpn-$ver-windows-x64-setup.exe"
+          Copy-Item $exeSrc $exeOut
+
+          $portDir = "$env:TEMP/Build-MyVpn-portable"
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $portDir
+          New-Item -ItemType Directory -Force -Path $portDir | Out-Null
+          Copy-Item "desktop/src-tauri/target/release/build-myvpn-desktop.exe" "$portDir/Build MyVpn.exe"
+          Copy-Item "desktop/src-tauri/binaries/sing-box-x86_64-pc-windows-msvc.exe" "$portDir/sing-box.exe"
+          Copy-Item "desktop/src-tauri/binaries/wintun.dll" "$portDir/wintun.dll"
+          $zipOut = "Build-MyVpn-$ver-windows-x64-portable.zip"
+          Compress-Archive -Force -Path "$portDir/*" -DestinationPath $zipOut
+
+          $h1 = (Get-FileHash -Algorithm SHA256 $exeOut).Hash.ToLower()
+          $h2 = (Get-FileHash -Algorithm SHA256 $zipOut).Hash.ToLower()
+          @("$h1  $exeOut", "$h2  $zipOut") | Set-Content -Encoding ascii SHA256SUMS-windows.txt
+          Get-Content SHA256SUMS-windows.txt
+
+      - name: Upload Windows x64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-myvpn-windows-x64
+          path: |
+            Build-MyVpn-*-windows-x64-setup.exe
+            Build-MyVpn-*-windows-x64-portable.zip
+            SHA256SUMS-windows.txt
+          if-no-files-found: error
+
+      - name: Attach Windows x64 installers to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Build-MyVpn-*-windows-x64-setup.exe
+            Build-MyVpn-*-windows-x64-portable.zip
+            SHA256SUMS-windows.txt
+          make_latest: true

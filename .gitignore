@@ -16,3 +16,11 @@ android/app/libs/*.aar
 
 # Temp test artifacts
 deploy-scripts/tests/.tmp/
+
+# Desktop (Tauri / Rust)
+desktop/src-tauri/target/
+desktop/src-tauri/binaries/sing-box*
+desktop/src-tauri/binaries/wintun.dll
+*.dmg
+*.msi
+*.exe

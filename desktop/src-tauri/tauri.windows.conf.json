@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "resources": {
+      "resources/install_singbox.sh": "resources/install_singbox.sh",
+      "binaries/wintun.dll": "wintun.dll"
+    }
+  }
+}

@@ -247,7 +247,7 @@ class BuildMyVpnService : VpnService() {
         return builder
             .setContentTitle("Build MyVpn")
             .setContentText(serverLabel.ifBlank { "Connected" })
-            .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setSmallIcon(com.buildmyvpn.R.drawable.ic_stat_brand)
             .addAction(
                 Notification.Action.Builder(
                     null,
