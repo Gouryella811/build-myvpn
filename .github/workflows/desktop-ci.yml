@@ -58,22 +58,32 @@ jobs:
       - name: Install Tauri CLI v2
         run: npm install -g @tauri-apps/cli@2
 
-      - name: Build macOS Universal .dmg
+      - name: Build macOS Universal .app
         working-directory: desktop/src-tauri
         env:
-          # Optional Apple Developer signing / notarization secrets (unused when empty)
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: tauri build --target universal-apple-darwin --bundles dmg
+          # Ad-hoc sign ("-") when Apple Developer signing secret is not configured
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
+        run: tauri build --target universal-apple-darwin --bundles app
 
-      - name: Stage macOS Universal .dmg
+      - name: Package macOS Universal .dmg
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
         run: |
           VER="${GITHUB_REF_NAME:-v1.1.0}"
-          DMG_SRC="$(ls desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg | head -n1)"
+          APP_SRC="desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos/Build MyVpn.app"
+          test -d "$APP_SRC"
+          file "$APP_SRC/Contents/MacOS/build-myvpn-desktop"
+          file "$APP_SRC/Contents/MacOS/sing-box"
+          codesign --force --deep --sign "${APPLE_SIGNING_IDENTITY:--}" "$APP_SRC"
+
+          STAGE="/tmp/dmg-stage"
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE"
+          cp -R "$APP_SRC" "$STAGE/Build MyVpn.app"
+          ln -s /Applications "$STAGE/Applications"
+
           DMG_OUT="Build-MyVpn-${VER}-macos-universal.dmg"
-          cp "$DMG_SRC" "$DMG_OUT"
+          hdiutil create -volname "Build MyVpn" -srcfolder "$STAGE" -ov -format UDZO "$DMG_OUT"
           shasum -a 256 "$DMG_OUT" > SHA256SUMS-macos.txt
           ls -lh "$DMG_OUT"
           cat SHA256SUMS-macos.txt
