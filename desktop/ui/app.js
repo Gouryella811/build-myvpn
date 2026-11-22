@@ -135,6 +135,12 @@
     $("speedDown").textContent = fmtSpeed(v.down_bps);
     $("speedUp").textContent = fmtSpeed(v.up_bps);
     $("sessionTraffic").textContent = fmtBytes(v.session_bytes);
+    const delayBtn = $("delayTestBtn");
+    if (delayBtn) delayBtn.disabled = !v.connected;
+    if (!v.connected) {
+      $("delayVal").textContent = "-- ms";
+      $("delayVal").style.color = "";
+    }
 
     const eb = $("errorBanner");
     if (v.last_error) {
@@ -370,12 +376,40 @@
       }
     });
 
+    let delayTesting = false;
+    async function runDelayTest() {
+      if (!state.vpn.connected || delayTesting) return;
+      delayTesting = true;
+      $("delayTestBtn").disabled = true;
+      $("delaySpin").classList.add("spinning");
+      $("delayVal").textContent = "...";
+      $("delayVal").style.color = "var(--accent)";
+      try {
+        const r = await invoke("test_delay");
+        if (r.ok) {
+          $("delayVal").textContent = `${r.ms} ms`;
+          $("delayVal").style.color = "var(--green)";
+        } else {
+          $("delayVal").textContent = "Timeout";
+          $("delayVal").style.color = "var(--red)";
+        }
+      } catch (_) {
+        $("delayVal").textContent = "Error";
+        $("delayVal").style.color = "var(--red)";
+      } finally {
+        delayTesting = false;
+        $("delaySpin").classList.remove("spinning");
+        $("delayTestBtn").disabled = !state.vpn.connected;
+      }
+    }
+
     // Connect / Disconnect button
     $("powerBtn").addEventListener("click", async () => {
       if (state.vpn.connecting) return;
       if (state.vpn.connected) {
         state.vpn = await invoke("disconnect_vpn");
         $("delayVal").textContent = "-- ms";
+        $("delayVal").style.color = "";
         renderConnect();
       } else {
         const srv = getSelectedServer();
@@ -386,6 +420,9 @@
         }
         try {
           state.vpn = await invoke("connect_vpn", { serverId: srv.id });
+          if (state.vpn.connected) {
+            setTimeout(() => runDelayTest(), 800);
+          }
         } catch (err) {
           state.vpn.last_error = String(err);
         }
@@ -393,17 +430,12 @@
       }
     });
 
-    // Delay test card
-    $("delayCard").addEventListener("click", async () => {
-      if (!state.vpn.connected) return;
-      $("delayVal").textContent = "...";
-      try {
-        const r = await invoke("test_delay");
-        $("delayVal").textContent = r.ok ? `${r.ms} ms` : "Timeout";
-      } catch (_) {
-        $("delayVal").textContent = "Error";
-      }
+    // Explicit Latency Test button + card tap
+    $("delayTestBtn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      runDelayTest();
     });
+    $("delayCard").addEventListener("click", runDelayTest);
 
     // Proxy & Routing mode selectors
     $("proxyModeSelect").addEventListener("change", async (e) => {

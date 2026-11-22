@@ -282,6 +282,37 @@ body {
   transition: border-color 0.14s;
 }
 .metric-action:hover { border-color: var(--accent); }
+.metric-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.ping-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: none;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s, opacity 0.14s;
+}
+.ping-btn:hover:not(:disabled) {
+  background: var(--accent);
+  color: #ffffff;
+}
+.ping-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+@keyframes bmv-spin { to { transform: rotate(360deg); } }
+.spinning { display: inline-block; animation: bmv-spin 0.7s linear infinite; }
 
 /* Mode controls */
 .quick-controls {

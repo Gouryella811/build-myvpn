@@ -530,13 +530,6 @@ private fun ConnectView(
         }
 
         // 2x2 Metrics Grid (identical 4 metrics to macOS / Windows)
-        val delayVal = when (val d = state.delayResult) {
-            DelayResult.Idle -> "-- ms"
-            DelayResult.Testing -> "..."
-            is DelayResult.Success -> "${d.millis} ms"
-            DelayResult.Timeout -> stringResource(R.string.delay_timeout)
-            is DelayResult.Failed -> stringResource(R.string.delay_failed)
-        }
         val downStr = if (state.vpnState == VpnState.CONNECTED) FormatUtils.formatSpeed(state.trafficSpeed.downBytesPerSec) else "0 B/s"
         val upStr = if (state.vpnState == VpnState.CONNECTED) FormatUtils.formatSpeed(state.trafficSpeed.upBytesPerSec) else "0 B/s"
         val usedStr = FormatUtils.formatBytes(srv?.totalUsedBytes ?: 0L)
@@ -546,12 +539,11 @@ private fun ConnectView(
             MetricTile("↑ Upload", upStr, Modifier.weight(1f))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricTile(
-                label = "${stringResource(R.string.refresh_delay)} ↻",
-                value = delayVal,
-                modifier = Modifier.weight(1f),
-                valueColor = if (state.delayResult is DelayResult.Success) c.green else c.text,
-                onClick = if (state.vpnState == VpnState.CONNECTED) onRefreshDelay else null
+            LatencyMetricTile(
+                delayResult = state.delayResult,
+                connected = state.vpnState == VpnState.CONNECTED,
+                onTest = onRefreshDelay,
+                modifier = Modifier.weight(1f)
             )
             MetricTile(stringResource(R.string.used_traffic_fmt, "").trim(), usedStr, Modifier.weight(1f))
         }
@@ -598,6 +590,57 @@ private fun ConnectView(
                     Text("›", color = c.muted, fontSize = 18.sp)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun LatencyMetricTile(
+    delayResult: DelayResult,
+    connected: Boolean,
+    onTest: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val c = LocalBmvColors.current
+    val value = when (delayResult) {
+        DelayResult.Idle -> "-- ms"
+        DelayResult.Testing -> "..."
+        is DelayResult.Success -> "${delayResult.millis} ms"
+        DelayResult.Timeout -> stringResource(R.string.delay_timeout)
+        is DelayResult.Failed -> stringResource(R.string.delay_failed)
+    }
+    val valColor = when (delayResult) {
+        is DelayResult.Success -> c.green
+        DelayResult.Testing -> c.accent
+        DelayResult.Timeout, is DelayResult.Failed -> c.red
+        DelayResult.Idle -> c.text
+    }
+    BmvCard(modifier = modifier, radius = 12.dp, onClick = if (connected) onTest else null) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Ping", fontSize = 11.5.sp, color = c.muted, maxLines = 1)
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = if (connected) c.accentSoft else c.elevated,
+                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).then(if (connected) Modifier.clickable(onClick = onTest) else Modifier)
+                ) {
+                    Text(
+                        text = "↻ ${stringResource(R.string.refresh_delay)}",
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (connected) c.accent else c.muted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+            Spacer(Modifier.height(3.dp))
+            Text(value, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = valColor, maxLines = 1)
         }
     }
 }

@@ -484,7 +484,7 @@
                 <strong id="sizeAndroid">.apk · 104 MB</strong>
               </div>
             </div>
-            <a class="dl-btn" id="dlAndroid" href="https://github.com/Gouryella811/build-myvpn/releases/download/v1.1.0/Build-MyVpn-v1.1.0-android.apk" download>
+            <a class="dl-btn" id="dlAndroid" href="https://github.com/Gouryella811/build-myvpn/releases/download/v1.1.1/Build-MyVpn-v1.1.1-android.apk" download>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               <span data-i18n="dl_now">立即下载</span>
             </a>
@@ -505,7 +505,7 @@
                 <strong id="sizeMac">.dmg · 40 MB</strong>
               </div>
             </div>
-            <a class="dl-btn" id="dlMac" href="https://github.com/Gouryella811/build-myvpn/releases/download/v1.1.0/Build-MyVpn-v1.1.0-macos-universal.dmg" download>
+            <a class="dl-btn" id="dlMac" href="https://github.com/Gouryella811/build-myvpn/releases/download/v1.1.1/Build-MyVpn-v1.1.1-macos-universal.dmg" download>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               <span data-i18n="dl_now">立即下载</span>
             </a>
@@ -526,7 +526,7 @@
                 <strong id="sizeWin">.exe · 13 MB</strong>
               </div>
             </div>
-            <a class="dl-btn" id="dlWin" href="https://github.com/Gouryella811/build-myvpn/releases/download/v1.1.0/Build-MyVpn-v1.1.0-windows-x64-setup.exe" download>
+            <a class="dl-btn" id="dlWin" href="https://github.com/Gouryella811/build-myvpn/releases/download/v1.1.1/Build-MyVpn-v1.1.1-windows-x64-setup.exe" download>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               <span data-i18n="dl_now">立即下载</span>
             </a>
@@ -534,10 +534,10 @@
         </div>
 
         <div class="dl-links-row">
-          <span class="dl-ver-pill" id="latestVerPill">v1.1.0</span>
-          <a id="dlWinPortable" href="https://github.com/Gouryella811/build-myvpn/releases/download/v1.1.0/Build-MyVpn-v1.1.0-windows-x64-portable.zip" download data-i18n="dl_win_portable">Windows 便携版 (.zip 直链)</a>
+          <span class="dl-ver-pill" id="latestVerPill">v1.1.1</span>
+          <a id="dlWinPortable" href="https://github.com/Gouryella811/build-myvpn/releases/download/v1.1.1/Build-MyVpn-v1.1.1-windows-x64-portable.zip" download data-i18n="dl_win_portable">Windows 便携版 (.zip 直链)</a>
           <span>·</span>
-          <a id="dlSha" href="https://github.com/Gouryella811/build-myvpn/releases/download/v1.1.0/SHA256SUMS.txt" target="_blank" rel="noopener" data-i18n="dl_sha">SHA-256 校验</a>
+          <a id="dlSha" href="https://github.com/Gouryella811/build-myvpn/releases/download/v1.1.1/SHA256SUMS.txt" target="_blank" rel="noopener" data-i18n="dl_sha">SHA-256 校验</a>
           <span>·</span>
           <a href="https://github.com/Gouryella811/build-myvpn/releases" target="_blank" rel="noopener" data-i18n="dl_all_releases">全部版本</a>
           <span>·</span>
@@ -1218,7 +1218,7 @@
       }
     })();
 
-    // Auto-sync direct download URLs & exact sizes with latest GitHub Release (v1.1.0 hardcoded as instant fallback)
+    // Auto-sync direct download URLs & exact sizes with latest GitHub Release (v1.1.1 hardcoded as instant fallback)
     fetch("https://api.github.com/repos/Gouryella811/build-myvpn/releases/latest")
       .then(r => (r.ok ? r.json() : null))
       .then(rel => {

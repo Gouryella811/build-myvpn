@@ -77,7 +77,13 @@
               <div class="metric-val" id="speedUp">0 B/s</div>
             </div>
             <div class="metric-card metric-action" id="delayCard">
-              <div class="metric-label" data-i18n="metric_delay">Latency (Test)</div>
+              <div class="metric-head">
+                <div class="metric-label" data-i18n="metric_delay">Latency</div>
+                <button type="button" class="ping-btn" id="delayTestBtn" disabled>
+                  <span id="delaySpin">↻</span>
+                  <span data-i18n="btn_test_delay">Test</span>
+                </button>
+              </div>
               <div class="metric-val" id="delayVal">-- ms</div>
             </div>
             <div class="metric-card">
